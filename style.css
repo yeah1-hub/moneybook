@@ -96,6 +96,7 @@ nav{position:fixed; bottom:0; width:100%; max-width:430px; display:flex; align-i
 .chips{display:flex; flex-wrap:wrap; gap:7px; margin:12px 0;}
 .chip{border:1.5px solid var(--line); background:none; border-radius:99px; padding:7px 12px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; font-family:inherit; color:var(--ink);}
 .chip.on{border-color:var(--ink); background:var(--ink); color:#fff;}
+.chip.addchip{border-style:dashed; color:var(--dim);}
 
 .meta{display:flex; gap:8px; margin-bottom:10px;}
 .meta input{border:0; background:#F4F5F8; border-radius:11px; padding:12px 13px; font-size:16px; font-family:inherit; color:var(--ink); min-width:0;}

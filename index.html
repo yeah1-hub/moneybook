@@ -14,7 +14,7 @@
 
 <script>
 var KEY = "moneybook:v2";
-var data = { entries: [], startSaved: 0, startCash: 0 };
+var data = { entries: [], startSaved: 0, startCash: 0, customCats: { expense:[], saving:[], income:[] } };
 var view = { tab:"home", sheet:null, type:"expense", raw:"", cat:"food", memo:"", date:"", month:"", confirmWipe:false };
 
 var CATS = {
@@ -39,7 +39,8 @@ var FIRST_CAT = { expense:"food", saving:"deposit", income:"salary" };
 var TYPE_NAME = { expense:"지출", saving:"저금", income:"월급" };
 
 function findCat(id){
-  var all = CATS.expense.concat(CATS.saving, CATS.income);
+  var all = CATS.expense.concat(CATS.saving, CATS.income,
+    data.customCats.expense, data.customCats.saving, data.customCats.income);
   for (var i=0;i<all.length;i++) if (all[i].id === id) return all[i];
   return {name:"기타", emoji:"•"};
 }
@@ -66,18 +67,22 @@ function save(){
     else localStorage.setItem(KEY, JSON.stringify(data));
   } catch(e){}
 }
+function normalizeData(){
+  if (!data.customCats) data.customCats = { expense:[], saving:[], income:[] };
+}
 function load(cb){
   try {
     if (window.storage && window.storage.get) {
       window.storage.get(KEY).then(function(r){
         if (r && r.value) { try { data = JSON.parse(r.value); } catch(e){} }
-        cb();
-      }).catch(function(){ cb(); });
+        normalizeData(); cb();
+      }).catch(function(){ normalizeData(); cb(); });
       return;
     }
     var v = localStorage.getItem(KEY);
     if (v) data = JSON.parse(v);
   } catch(e){}
+  normalizeData();
   cb();
 }
 
@@ -227,7 +232,7 @@ function historyHTML(){
 }
 
 function entrySheetHTML(){
-  var cats = CATS[view.type];
+  var cats = CATS[view.type].concat(data.customCats[view.type]);
   var amount = Number(view.raw||0);
   var keys = ["1","2","3","4","5","6","7","8","9","00","0","back"];
   var types = ["expense","saving","income"];
@@ -240,7 +245,7 @@ function entrySheetHTML(){
     + '<div class="display"><div class="amount '+(view.raw?view.type:"zero")+'">'+won(amount)+'<span class="unit">원</span></div></div>'
     + '<div class="chips">'+cats.map(function(c){
         return '<button class="chip '+(view.cat===c.id?"on":"")+'" onclick="setCat(\''+c.id+'\')"><span>'+c.emoji+'</span>'+c.name+'</button>';
-      }).join("")+'</div>'
+      }).join("")+'<button class="chip addchip" onclick="addCategory()" aria-label="카테고리 추가">+ 추가</button></div>'
     + '<div class="meta">'
     + '<input class="memo" value="'+esc(view.memo)+'" oninput="view.memo=this.value" placeholder="메모 (선택)" maxlength="24">'
     + '<input class="datein" type="date" value="'+view.date+'" onchange="view.date=this.value">'
@@ -288,6 +293,20 @@ function openSettings(){ view.sheet="settings"; view.confirmWipe=false; render()
 function closeSheet(){ view.sheet=null; render(); }
 function setType(t){ view.type=t; view.cat=FIRST_CAT[t]; render(); }
 function setCat(id){ view.cat=id; render(); }
+function addCategory(){
+  var name = window.prompt("추가할 카테고리 이름을 입력하세요");
+  if (name === null) return;
+  name = name.trim();
+  if (!name) return;
+  var emoji = window.prompt("카테고리 이모지를 입력하세요 (비워두면 기본값)");
+  if (emoji === null) return;
+  emoji = emoji.trim() || "🏷";
+  var id = view.type + "_custom_" + Date.now();
+  data.customCats[view.type].push({ id:id, name:name, emoji:emoji });
+  view.cat = id;
+  save();
+  render();
+}
 function press(k){
   if (k==="back") view.raw = view.raw.slice(0,-1);
   else if (view.raw.length<=9 && !(view.raw==="" && (k==="0"||k==="00"))) view.raw += k;
@@ -313,7 +332,7 @@ function saveStart(){
   save(); view.sheet=null; render();
 }
 function wipeAll(){
-  data = { entries:[], startSaved:0, startCash:0 };
+  data = { entries:[], startSaved:0, startCash:0, customCats:{ expense:[], saving:[], income:[] } };
   save(); view.sheet=null; view.confirmWipe=false; render();
 }
 
