@@ -6,8 +6,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="가계부">
 <meta name="theme-color" content="#EFF1F4">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>가계부</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260826b">
 </head>
 <body>
 <div id="app"></div>
@@ -45,6 +48,11 @@ function findCat(id){
   return {name:"기타", emoji:"•"};
 }
 function won(n){ return Number(n||0).toLocaleString("ko-KR"); }
+function compactWon(n){
+  n = Number(n||0);
+  if (n >= 10000) return (Math.round(n/1000)/10)+"만";
+  return won(n);
+}
 function pad2(n){ return n<10 ? "0"+n : ""+n; }
 function dateKey(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
 function monthKey(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1); }
@@ -171,14 +179,43 @@ function homeHTML(){
     + '<div class="card"><div class="label">지출</div><div class="mid spend">'+won(m.expense)+'</div></div>'
     + '</section>';
 
-  var recent = data.entries.slice().sort(byRecent).slice(0,5);
-  var recentCard = '<section class="card"><div class="label">최근 기록</div>'
-    + (recent.length===0
-      ? '<div class="empty"><p>아직 기록이 없어요.</p><button class="outline" onclick="openSheet()">첫 기록 남기기</button></div>'
-      : '<ul class="list">'+recent.map(function(e){return itemHTML(e,false);}).join("")+'</ul>')
-    + '</section>';
+  return '<div class="stack">'+assetCard+monthCard+trio+calendarHTML(mk)+'</div>';
+}
 
-  return '<div class="stack">'+assetCard+monthCard+trio+recentCard+'</div>';
+function calendarHTML(mk){
+  var p = mk.split("-"), year = +p[0], month = +p[1];
+  var startDow = new Date(year, month-1, 1).getDay();
+  var daysInMonth = new Date(year, month, 0).getDate();
+  var todayKey = dateKey(new Date());
+
+  var byDay = {};
+  data.entries.forEach(function(e){
+    if (e.date.indexOf(mk) !== 0) return;
+    if (!byDay[e.date]) byDay[e.date] = {income:0, expense:0, saving:0};
+    byDay[e.date][e.type] += e.amount;
+  });
+
+  var weekdays = ["일","월","화","수","목","금","토"];
+  var week = '<div class="calweek">'+weekdays.map(function(w){return '<span>'+w+'</span>';}).join("")+'</div>';
+
+  var cells = "";
+  for (var i=0;i<startDow;i++) cells += '<div class="calcell calempty"></div>';
+  for (var d=1; d<=daysInMonth; d++){
+    var key = mk+"-"+pad2(d);
+    var day = byDay[key];
+    var lines = "";
+    if (day){
+      if (day.income>0) lines += '<span class="calamt income">+'+compactWon(day.income)+'</span>';
+      if (day.expense>0) lines += '<span class="calamt expense">−'+compactWon(day.expense)+'</span>';
+      if (day.saving>0) lines += '<span class="calamt saving">→'+compactWon(day.saving)+'</span>';
+    }
+    cells += '<div class="calcell'+(key===todayKey?" today":"")+(day?" hasentry":"")+'"'
+      + (day ? ' onclick="go(\'history\')"' : '')
+      + '><span class="caldate">'+d+'</span>'+lines+'</div>';
+  }
+
+  return '<section class="card calendar"><div class="label">'+prettyMonth(mk)+'</div>'
+    + week + '<div class="calgrid">'+cells+'</div></section>';
 }
 
 function byRecent(a,b){
