@@ -10,7 +10,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>가계부</title>
-<link rel="stylesheet" href="style.css?v=20260826c">
+<link rel="stylesheet" href="style.css?v=20260826e">
 </head>
 <body>
 <div id="app"></div>
@@ -18,7 +18,7 @@
 <script>
 var KEY = "moneybook:v2";
 var data = { entries: [], startSaved: 0, startCash: 0, customCats: { expense:[], saving:[], income:[] } };
-var view = { tab:"home", sheet:null, type:"expense", raw:"", cat:"food", memo:"", date:"", month:"", confirmWipe:false, editId:null };
+var view = { tab:"home", sheet:null, type:"expense", raw:"", cat:"food", method:"cash", memo:"", date:"", month:"", confirmWipe:false, editId:null, filter:null, keypadOpen:false };
 
 var CATS = {
   expense: [
@@ -40,6 +40,11 @@ var CATS = {
 };
 var FIRST_CAT = { expense:"food", saving:"deposit", income:"salary" };
 var TYPE_NAME = { expense:"지출", saving:"저금", income:"수입" };
+var METHODS = [
+  {id:"credit",name:"신용카드"},{id:"debit",name:"체크카드"},
+  {id:"cash",name:"현금"},{id:"transfer",name:"계좌이체"}
+];
+var FIRST_METHOD = "cash";
 
 function findCat(id){
   var all = CATS.expense.concat(CATS.saving, CATS.income,
@@ -238,14 +243,17 @@ function historyHTML(){
     + '<button onclick="moveMonth(1)" aria-label="다음 달">&rsaquo;</button></div>';
 
   var summary = '<section class="trio">'
-    + '<div class="card"><div class="label">수입</div><div class="mid income">'+won(m.income)+'</div></div>'
-    + '<div class="card"><div class="label">저금</div><div class="mid saving">'+won(m.saving)+'</div></div>'
-    + '<div class="card"><div class="label">지출</div><div class="mid spend">'+won(m.expense)+'</div></div>'
+    + '<div class="card filterable'+(view.filter==="income"?" on income":"")+'" onclick="setFilter(\'income\')"><div class="label">수입</div><div class="mid income">'+won(m.income)+'</div></div>'
+    + '<div class="card filterable'+(view.filter==="saving"?" on saving":"")+'" onclick="setFilter(\'saving\')"><div class="label">저금</div><div class="mid saving">'+won(m.saving)+'</div></div>'
+    + '<div class="card filterable'+(view.filter==="expense"?" on spend":"")+'" onclick="setFilter(\'expense\')"><div class="label">지출</div><div class="mid spend">'+won(m.expense)+'</div></div>'
     + '</section>';
 
-  var rows = data.entries.filter(function(e){ return e.date.indexOf(mk)===0; }).sort(byRecent);
-  if (rows.length === 0)
-    return nav + '<div class="stack">'+summary+'<div class="card empty"><p>이 달은 아직 기록이 없어요.</p></div></div>';
+  var monthRows = data.entries.filter(function(e){ return e.date.indexOf(mk)===0; });
+  var rows = monthRows.filter(function(e){ return !view.filter || e.type===view.filter; }).sort(byRecent);
+  if (rows.length === 0) {
+    var msg = (view.filter && monthRows.length>0) ? "이 달에는 "+TYPE_NAME[view.filter]+" 기록이 없어요." : "이 달은 아직 기록이 없어요.";
+    return nav + '<div class="stack">'+summary+'<div class="card empty"><p>'+msg+'</p></div></div>';
+  }
 
   var order=[], groups={};
   rows.forEach(function(e){
@@ -253,10 +261,12 @@ function historyHTML(){
     groups[e.date].push(e);
   });
 
+  var totalType = view.filter || "expense";
+  var totalSign = totalType==="income" ? "+" : (totalType==="saving" ? "→" : "−");
   var days = order.map(function(day){
-    var total = groups[day].reduce(function(s,e){ return e.type==="expense" ? s+e.amount : s; },0);
+    var total = groups[day].reduce(function(s,e){ return e.type===totalType ? s+e.amount : s; },0);
     return '<section class="card"><div class="dayhead"><span class="label">'+prettyDate(day)+'</span>'
-      + '<span class="daytotal">'+(total>0 ? "\u2212"+won(total)+"원" : "")+'</span></div>'
+      + '<span class="daytotal">'+(total>0 ? totalSign+won(total)+"원" : "")+'</span></div>'
       + '<ul class="list">'+groups[day].map(function(e){return itemHTML(e,true);}).join("")+'</ul></section>';
   }).join("");
 
@@ -266,7 +276,6 @@ function historyHTML(){
 function entrySheetHTML(){
   var cats = CATS[view.type].concat(data.customCats[view.type]);
   var amount = Number(view.raw||0);
-  var keys = ["1","2","3","4","5","6","7","8","9","00","0","back"];
   var types = ["expense","saving","income"];
 
   return '<div class="sheet"><div class="sheethead">'
@@ -274,19 +283,31 @@ function entrySheetHTML(){
     + '<div class="toggle">'+types.map(function(t){
         return '<button class="'+(view.type===t?"on "+t:"")+'" onclick="setType(\''+t+'\')">'+TYPE_NAME[t]+'</button>';
       }).join("")+'</div><span class="x ghost"></span></div>'
-    + '<div class="display"><div class="amount '+(view.raw?view.type:"zero")+'">'+won(amount)+'<span class="unit">원</span></div></div>'
-    + '<div class="chips">'+cats.map(function(c){
-        return '<button class="chip '+(view.cat===c.id?"on":"")+'" onclick="setCat(\''+c.id+'\')"><span>'+c.emoji+'</span>'+c.name+'</button>';
-      }).join("")+'<button class="chip addchip" onclick="addCategory()" aria-label="카테고리 추가">+ 추가</button></div>'
+    + '<div class="display" onclick="toggleKeypad()"><div class="amount '+(view.raw?view.type:"zero")+'">'+won(amount)+'<span class="unit">원</span></div></div>'
+    + '<div class="label sectionlabel">결제수단</div>'
+    + '<div class="chips">'+METHODS.map(function(mo){
+        return '<button class="chip '+(view.method===mo.id?"on":"")+'" onclick="setMethod(\''+mo.id+'\')">'+mo.name+'</button>';
+      }).join("")+'</div>'
+    + '<div class="label sectionlabel">카테고리</div>'
+    + '<div class="catgrid">'+cats.map(function(c){
+        return '<button class="cattile '+(view.cat===c.id?"on":"")+'" onclick="setCat(\''+c.id+'\')"><span class="emo">'+c.emoji+'</span><span class="nm">'+esc(c.name)+'</span></button>';
+      }).join("")+'<button class="cattile addcat" onclick="addCategory()" aria-label="카테고리 추가"><span class="emo">+</span><span class="nm">추가</span></button></div>'
     + '<div class="meta">'
     + '<input class="memo" value="'+esc(view.memo)+'" oninput="view.memo=this.value" placeholder="메모 (선택)" maxlength="24">'
     + '<input class="datein" type="date" value="'+view.date+'" onchange="view.date=this.value">'
     + '</div>'
+    + '<button class="save '+view.type+'" onclick="saveEntry()"'+(amount<=0?" disabled":"")+'>'
+    + (amount>0 ? won(amount)+'원 '+TYPE_NAME[view.type]+(view.editId?' 수정':' 저장') : '금액을 입력하세요')+'</button>'
+    + keypadPopupHTML() + '</div>';
+}
+
+function keypadPopupHTML(){
+  var keys = ["1","2","3","4","5","6","7","8","9","00","0","back"];
+  return '<div class="keypadpopup'+(view.keypadOpen?" open":"")+'">'
+    + '<div class="keypadhead"><span class="label">금액 입력</span><button class="done" onclick="closeKeypad()">완료</button></div>'
     + '<div class="pad">'+keys.map(function(k){
         return '<button class="key" onclick="press(\''+k+'\')">'+(k==="back"?"\u2190":k)+'</button>';
-      }).join("")+'</div>'
-    + '<button class="save '+view.type+'" onclick="saveEntry()"'+(amount<=0?" disabled":"")+'>'
-    + (amount>0 ? won(amount)+'원 '+TYPE_NAME[view.type]+(view.editId?' 수정':' 저장') : '금액을 입력하세요')+'</button></div>';
+      }).join("")+'</div></div>';
 }
 
 function settingsSheetHTML(){
@@ -316,22 +337,39 @@ function go(tab){
   render();
 }
 function moveMonth(n){ view.month = shiftMonth(view.month || monthKey(new Date()), n); render(); }
+function setFilter(t){ view.filter = (view.filter===t ? null : t); render(); }
 function openSheet(type){
   view.sheet="entry"; view.type = type || "expense"; view.raw=""; view.editId=null;
-  view.cat = FIRST_CAT[view.type]; view.memo=""; view.date = dateKey(new Date());
+  view.cat = FIRST_CAT[view.type]; view.method = FIRST_METHOD; view.memo=""; view.date = dateKey(new Date());
+  view.keypadOpen=false;
   render();
 }
 function editEntry(id){
   var e = data.entries.find(function(e){ return e.id === id; });
   if (!e) return;
   view.sheet="entry"; view.editId=id; view.type=e.type; view.raw=String(e.amount);
-  view.cat=e.category; view.memo=e.memo||""; view.date=e.date;
+  view.cat=e.category; view.method=e.method||FIRST_METHOD; view.memo=e.memo||""; view.date=e.date;
+  view.keypadOpen=false;
   render();
 }
 function openSettings(){ view.sheet="settings"; view.confirmWipe=false; render(); }
 function closeSheet(){ view.sheet=null; view.editId=null; render(); }
 function setType(t){ view.type=t; view.cat=FIRST_CAT[t]; render(); }
 function setCat(id){ view.cat=id; render(); }
+function setMethod(id){ view.method=id; render(); }
+function toggleKeypad(){ if (view.keypadOpen) closeKeypad(); else openKeypad(); }
+function openKeypad(){
+  view.keypadOpen = true;
+  var el = document.querySelector(".keypadpopup");
+  if (!el) { render(); return; }
+  requestAnimationFrame(function(){ el.classList.add("open"); });
+}
+function closeKeypad(){
+  view.keypadOpen = false;
+  var el = document.querySelector(".keypadpopup");
+  if (!el) { render(); return; }
+  el.classList.remove("open");
+}
 function addCategory(){
   var name = window.prompt("추가할 카테고리 이름을 입력하세요");
   if (name === null) return;
@@ -357,13 +395,13 @@ function saveEntry(){
   if (view.editId) {
     var e = data.entries.find(function(e){ return e.id === view.editId; });
     if (e) {
-      e.type = view.type; e.amount = amount; e.category = view.cat;
+      e.type = view.type; e.amount = amount; e.category = view.cat; e.method = view.method;
       e.memo = view.memo.trim(); e.date = view.date;
     }
   } else {
     data.entries.unshift({
       id: Date.now()+"-"+Math.random().toString(36).slice(2,7),
-      type: view.type, amount: amount, category: view.cat,
+      type: view.type, amount: amount, category: view.cat, method: view.method,
       memo: view.memo.trim(), date: view.date, createdAt: Date.now()
     });
   }
