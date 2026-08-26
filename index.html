@@ -10,7 +10,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>가계부</title>
-<link rel="stylesheet" href="style.css?v=20260826e">
+<link rel="stylesheet" href="style.css?v=20260826g">
 </head>
 <body>
 <div id="app"></div>
@@ -162,8 +162,6 @@ function homeHTML(){
       + '<div class="big'+(m.left<0?" neg":"")+'">'+won(m.left)+'<span class="unit">원</span></div>'
       + '<div class="bar"><div class="fill'+(over?" hot":"")+'" style="width:'+usedPct+'%"></div>'
       +   '<div class="pace" style="left:'+pacePct+'%"></div></div>'
-      + '<div class="barfoot"><span>수입에서 '+won(used)+'원 나감</span>'
-      +   '<span class="'+(over?"hot":"cool")+'">'+(over?"속도 빠름":"여유 있음")+'</span></div>'
       + '</section>';
   } else {
     monthCard = '<section class="card">'
@@ -174,9 +172,9 @@ function homeHTML(){
   }
 
   var trio = '<section class="trio">'
-    + '<div class="card"><div class="label">수입</div><div class="mid income">'+won(m.income)+'</div></div>'
-    + '<div class="card"><div class="label">저금</div><div class="mid saving">'+won(m.saving)+'</div></div>'
-    + '<div class="card"><div class="label">지출</div><div class="mid spend">'+won(m.expense)+'</div></div>'
+    + '<div class="card filterable" onclick="goFilter(\'income\')"><div class="label">수입</div><div class="mid income">'+won(m.income)+'</div></div>'
+    + '<div class="card filterable" onclick="goFilter(\'saving\')"><div class="label">저금</div><div class="mid saving">'+won(m.saving)+'</div></div>'
+    + '<div class="card filterable" onclick="goFilter(\'expense\')"><div class="label">지출</div><div class="mid spend">'+won(m.expense)+'</div></div>'
     + '</section>';
 
   return '<div class="stack">'+assetCard+monthCard+trio+calendarHTML(mk)+'</div>';
@@ -284,6 +282,10 @@ function entrySheetHTML(){
         return '<button class="'+(view.type===t?"on "+t:"")+'" onclick="setType(\''+t+'\')">'+TYPE_NAME[t]+'</button>';
       }).join("")+'</div><span class="x ghost"></span></div>'
     + '<div class="display" onclick="toggleKeypad()"><div class="amount '+(view.raw?view.type:"zero")+'">'+won(amount)+'<span class="unit">원</span></div></div>'
+    + '<div class="meta">'
+    + '<input class="memo" value="'+esc(view.memo)+'" oninput="view.memo=this.value" placeholder="메모" maxlength="24">'
+    + '<input class="datein" type="date" value="'+view.date+'" onchange="view.date=this.value">'
+    + '</div>'
     + '<div class="label sectionlabel">결제수단</div>'
     + '<div class="chips">'+METHODS.map(function(mo){
         return '<button class="chip '+(view.method===mo.id?"on":"")+'" onclick="setMethod(\''+mo.id+'\')">'+mo.name+'</button>';
@@ -292,12 +294,7 @@ function entrySheetHTML(){
     + '<div class="catgrid">'+cats.map(function(c){
         return '<button class="cattile '+(view.cat===c.id?"on":"")+'" onclick="setCat(\''+c.id+'\')"><span class="emo">'+c.emoji+'</span><span class="nm">'+esc(c.name)+'</span></button>';
       }).join("")+'<button class="cattile addcat" onclick="addCategory()" aria-label="카테고리 추가"><span class="emo">+</span><span class="nm">추가</span></button></div>'
-    + '<div class="meta">'
-    + '<input class="memo" value="'+esc(view.memo)+'" oninput="view.memo=this.value" placeholder="메모 (선택)" maxlength="24">'
-    + '<input class="datein" type="date" value="'+view.date+'" onchange="view.date=this.value">'
-    + '</div>'
-    + '<button class="save '+view.type+'" onclick="saveEntry()"'+(amount<=0?" disabled":"")+'>'
-    + (amount>0 ? won(amount)+'원 '+TYPE_NAME[view.type]+(view.editId?' 수정':' 저장') : '금액을 입력하세요')+'</button>'
+    + (amount>0 ? '<button class="save '+view.type+'" onclick="saveEntry()">'+won(amount)+'원 '+TYPE_NAME[view.type]+(view.editId?' 수정':' 저장')+'</button>' : '')
     + keypadPopupHTML() + '</div>';
 }
 
@@ -338,6 +335,7 @@ function go(tab){
 }
 function moveMonth(n){ view.month = shiftMonth(view.month || monthKey(new Date()), n); render(); }
 function setFilter(t){ view.filter = (view.filter===t ? null : t); render(); }
+function goFilter(t){ view.tab="history"; view.month=monthKey(new Date()); view.filter=t; render(); }
 function openSheet(type){
   view.sheet="entry"; view.type = type || "expense"; view.raw=""; view.editId=null;
   view.cat = FIRST_CAT[view.type]; view.method = FIRST_METHOD; view.memo=""; view.date = dateKey(new Date());
