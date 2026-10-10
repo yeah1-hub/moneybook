@@ -142,6 +142,11 @@
   .bank-row .sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
   .bank-row .money { font-size: 16px; font-weight: 400; color: var(--text); white-space: nowrap; margin-left: 12px; }
   .bank-row.total-row .money { color: var(--saving); }
+  .data-row { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-top: 1px solid var(--line); cursor: pointer; }
+  .data-row:first-child { border-top: none; }
+  .data-row .name { font-size: 15px; font-weight: 600; }
+  .data-row .sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .data-row .arrow { color: #c4c8ce; font-size: 18px; }
   .bank-tip { font-size: 12px; color: var(--sub); text-align: center; margin-top: 14px; }
 
   /* + 플로팅 버튼 */
@@ -328,6 +333,10 @@
   <div class="section-title"><span>저금</span><span id="savingTotal"></span></div>
   <div class="list-card" style="margin-top:0" id="savingList"></div>
   <div class="bank-tip">항목을 누르면 앱을 쓰기 전부터 있던 시작 금액을 넣을 수 있어요</div>
+
+  <div class="section-title"><span>기록 관리</span></div>
+  <div class="list-card" style="margin-top:0" id="dataList"></div>
+  <input type="file" id="restoreInput" accept=".json,application/json" style="display:none">
 </section>
 
 <div class="dlg-dim" id="dlgDim">
@@ -427,7 +436,7 @@
 
   // ===== 앱 안 팝업 =====
   // 입력형: 입력한 글자(취소면 null) / 확인형: true·false 를 돌려줌
-  function uiDialog({ title, message = "", input = null, okText = "확인", danger = false, validate = null, color = null }) {
+  function uiDialog({ title, message = "", input = null, okText = "확인", danger = false, validate = null, color = null, noCancel = false }) {
     const dim = document.getElementById("dlgDim"), inp = document.getElementById("dlgInput"),
           ok = document.getElementById("dlgOk"), cancel = document.getElementById("dlgCancel"),
           err = document.getElementById("dlgErr");
@@ -454,6 +463,8 @@
     }
     ok.textContent = okText;
     ok.classList.toggle("danger", danger);
+    cancel.style.display = noCancel ? "none" : "";
+    ok.parentElement.style.gridTemplateColumns = noCancel ? "1fr" : "";
     dim.classList.add("show");
     // 아이폰은 누른 순간 바로 focus 해야 키패드가 자동으로 올라옴
     if (input) { inp.focus(); inp.select(); }
@@ -582,7 +593,7 @@
     document.getElementById("viewport").style.height = h ? h + "px" : "";
   }
 
-  function render() { renderSummary(); renderCalendar(); renderRecords(); renderStats(); renderBank(); }
+  function render() { renderSummary(); renderCalendar(); renderRecords(); renderStats(); renderBank(); renderDataList(); }
 
   // ===== 하단 탭 =====
   document.querySelectorAll(".tabbar button").forEach(btn => btn.onclick = () => {
@@ -1167,6 +1178,154 @@
     if (sheetStartY !== null && e.changedTouches[0].clientY - sheetStartY > 60) closeSheet();
     sheetStartY = null;
   });
+
+  // ===== 백업 · 복원 · 예전 기록 불러오기 =====
+  const OLD_KEY = "moneybook:v2";
+  const fmtDate = ts => { const d = new Date(ts); return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`; };
+  const saveAll = () => {
+    try {
+      localStorage.setItem("mb_transactions", JSON.stringify(transactions));
+      localStorage.setItem("mb_categories", JSON.stringify(CATEGORIES));
+    } catch (e) {}
+    saveCatColors(); saveStart(); saveSettings();
+  };
+
+  function oldData() {
+    try {
+      const d = JSON.parse(localStorage.getItem(OLD_KEY) || "null");
+      return d && Array.isArray(d.entries) && d.entries.length ? d : null;
+    } catch (e) { return null; }
+  }
+
+  function renderDataList() {
+    let last = null;
+    try { last = localStorage.getItem("mb_lastBackup"); } catch (e) {}
+    const old = oldData();
+    let imported = false;
+    try { imported = !!localStorage.getItem("mb_importedV2"); } catch (e) {}
+    document.getElementById("dataList").innerHTML = `
+      <div class="data-row" data-act="backup">
+        <div><div class="name">백업하기</div><div class="sub">${last ? "마지막 백업 " + fmtDate(+last) : "아직 백업한 적이 없어요"}</div></div>
+        <span class="arrow">›</span>
+      </div>
+      <div class="data-row" data-act="restore">
+        <div><div class="name">복원하기</div><div class="sub">백업 파일로 기록 되살리기</div></div>
+        <span class="arrow">›</span>
+      </div>
+      ${old ? `<div class="data-row" data-act="import">
+        <div><div class="name">예전 버전 기록 불러오기</div><div class="sub">${imported ? "불러오기 완료 · " : ""}예전 기록 ${old.entries.length}건</div></div>
+        <span class="arrow">›</span>
+      </div>` : ""}`;
+  }
+
+  async function doBackup() {
+    const now = new Date();
+    const payload = {
+      app: "moneybook", version: 3, exportedAt: now.toISOString(),
+      transactions, categories: CATEGORIES, catColors, start, settings
+    };
+    const name = `가계부-백업-${keyOf(now.getFullYear(), now.getMonth(), now.getDate())}.json`;
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const markDone = () => { try { localStorage.setItem("mb_lastBackup", String(Date.now())); } catch (e) {} renderDataList(); };
+
+    // 아이폰: 공유창으로 '파일에 저장'·카톡 등으로 보내기
+    try {
+      const file = new File([blob], name, { type: "application/json" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "가계부 백업" });
+        markDone();
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === "AbortError") return; // 공유창 닫음
+    }
+    // PC 등: 파일로 다운로드
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    markDone();
+  }
+
+  const restoreInput = document.getElementById("restoreInput");
+  restoreInput.onchange = async () => {
+    const file = restoreInput.files[0];
+    restoreInput.value = "";
+    if (!file) return;
+    let d;
+    try { d = JSON.parse(await file.text()); } catch (e) { d = null; }
+    if (!d || d.app !== "moneybook" || !Array.isArray(d.transactions)) {
+      await uiDialog({ title: "복원할 수 없어요", message: "가계부 백업 파일이 아니에요.", noCancel: true });
+      return;
+    }
+    const yes = await uiDialog({
+      title: "백업으로 복원",
+      message: `${fmtDate(d.exportedAt)} 백업(기록 ${d.transactions.length}건)으로 바꿀까요? 지금 있는 기록은 이 백업 내용으로 덮어써져요.`,
+      okText: "복원", danger: true
+    });
+    if (!yes) return;
+    transactions = d.transactions;
+    if (d.categories) CATEGORIES = d.categories;
+    catColors = Object.assign({ expense: {}, income: {}, saving: {} }, d.catColors || {});
+    start = Object.assign({ cash: 0, saving: {} }, d.start || {});
+    settings = Object.assign({ billDay: null }, d.settings || {});
+    saveAll();
+    render();
+    await uiDialog({ title: "복원 완료", message: `기록 ${transactions.length}건을 되살렸어요.`, noCancel: true });
+  };
+
+  async function doImportOld() {
+    const old = oldData();
+    if (!old) return;
+    let imported = false;
+    try { imported = !!localStorage.getItem("mb_importedV2"); } catch (e) {}
+    const yes = await uiDialog({
+      title: "예전 기록 불러오기",
+      message: imported
+        ? `이미 한 번 불러왔어요. 다시 불러오면 같은 기록이 두 번 들어갈 수 있어요. 그래도 불러올까요?`
+        : `예전 버전에 저장된 기록 ${old.entries.length}건을 지금 가계부에 추가할까요?`,
+      okText: "불러오기"
+    });
+    if (!yes) return;
+
+    // 예전 카테고리 id → 이름
+    const OLD_CATS = { food: "식비", cafe: "카페·간식", transport: "교통", shopping: "쇼핑", living: "생활", fixed: "고정비",
+      culture: "문화", health: "의료", etc_ex: "기타", deposit: "적금", savings: "예금", invest: "투자", emergency: "비상금",
+      etc_sv: "기타", salary: "월급", bonus: "상여·보너스", side: "부수입", etc_in: "기타" };
+    const custom = old.customCats || {};
+    ["expense", "saving", "income"].forEach(t => (custom[t] || []).forEach(c => { OLD_CATS[c.id] = c.name; }));
+    const METHOD = { credit: "신용카드", debit: "체크카드", transfer: "계좌이체" };
+
+    let count = 0;
+    old.entries.forEach(e => {
+      if (!e || !e.date || !e.amount || !["expense", "income", "saving"].includes(e.type)) return;
+      const cat = OLD_CATS[e.category] || "기타";
+      if (!CATEGORIES[e.type].includes(cat)) CATEGORIES[e.type].push(cat);
+      const memo = [e.memo, METHOD[e.method]].filter(Boolean).join(" · ");
+      transactions.push({ date: e.date, type: e.type, amount: Number(e.amount), category: cat, memo });
+      count++;
+    });
+    if (!imported) {
+      if (old.startCash) start.cash = (start.cash || 0) + Number(old.startCash);
+      if (old.startSaved) start.saving["기타"] = (start.saving["기타"] || 0) + Number(old.startSaved);
+    }
+    transactions.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+    try { localStorage.setItem("mb_importedV2", "1"); } catch (e) {}
+    saveAll();
+    render();
+    await uiDialog({ title: "불러오기 완료", message: `예전 기록 ${count}건을 추가했어요.`, noCancel: true });
+  }
+
+  document.getElementById("dataList").onclick = e => {
+    const row = e.target.closest("[data-act]");
+    if (!row) return;
+    if (row.dataset.act === "backup") doBackup();
+    else if (row.dataset.act === "restore") restoreInput.click();
+    else if (row.dataset.act === "import") doImportOld();
+  };
+
+  // 브라우저에 '이 사이트 기록은 지우지 말아줘' 요청
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 
   render();
 </script>
