@@ -1235,11 +1235,11 @@
     try { imported = !!localStorage.getItem("mb_importedV2"); } catch (e) {}
     document.getElementById("dataList").innerHTML = `
       <div class="data-row" data-act="backup">
-        <div><div class="name">백업하기</div><div class="sub">${last ? "마지막 백업 " + fmtDate(+last) : "아직 백업한 적이 없어요"}</div></div>
+        <div><div class="name">백업하기</div></div>
         <span class="arrow">›</span>
       </div>
       <div class="data-row" data-act="restore">
-        <div><div class="name">복원하기</div><div class="sub">백업 파일로 기록 되살리기</div></div>
+        <div><div class="name">복원하기</div></div>
         <span class="arrow">›</span>
       </div>
       ${old ? `<div class="data-row" data-act="import">
