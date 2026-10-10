@@ -103,7 +103,7 @@
   .records { padding-bottom: 60px; }
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; width: 100%;
-    display: grid; grid-template-columns: repeat(3, 1fr);
+    display: grid; grid-template-columns: repeat(4, 1fr);
     padding-left: max(0px, calc((100% - 480px) / 2)); padding-right: max(0px, calc((100% - 480px) / 2));
     background: rgba(255,255,255,0.94); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
     border-top: 1px solid var(--line); padding-top: 10px; padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
@@ -333,10 +333,17 @@
   <div class="section-title"><span>저금</span><span id="savingTotal"></span></div>
   <div class="list-card" style="margin-top:0" id="savingList"></div>
   <div class="bank-tip">항목을 누르면 앱을 쓰기 전부터 있던 시작 금액을 넣을 수 있어요</div>
+</section>
 
+<!-- 더보기 -->
+<section class="page" id="page-more">
+  <div class="page-title">더보기</div>
   <div class="section-title"><span>기록 관리</span></div>
   <div class="list-card" style="margin-top:0" id="dataList"></div>
   <input type="file" id="restoreInput" accept=".json,application/json" style="display:none">
+
+  <div class="section-title"><span>카드</span></div>
+  <div class="list-card" style="margin-top:0" id="cardList"></div>
 </section>
 
 <div class="dlg-dim" id="dlgDim">
@@ -368,6 +375,9 @@
   </button>
   <button data-page="bank" aria-label="저금통">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9.5c1 .6 1.7 1.7 2 2.5h1v4h-1.5a7 7 0 0 1-2.5 2.6V21h-3v-1.5h-4V21H8v-2.4A7 7 0 0 1 12 6h3l3-2v4.2"/><circle cx="16" cy="11" r="0.6" fill="currentColor"/></svg>
+  </button>
+  <button data-page="more" aria-label="더보기">
+    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
   </button>
 </nav>
 
@@ -593,14 +603,14 @@
     document.getElementById("viewport").style.height = h ? h + "px" : "";
   }
 
-  function render() { renderSummary(); renderCalendar(); renderRecords(); renderStats(); renderBank(); renderDataList(); }
+  function render() { renderSummary(); renderCalendar(); renderRecords(); renderStats(); renderBank(); renderDataList(); renderCardList(); }
 
   // ===== 하단 탭 =====
   document.querySelectorAll(".tabbar button").forEach(btn => btn.onclick = () => {
     const page = btn.dataset.page;
     document.querySelectorAll(".tabbar button").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "page-" + page));
-    document.body.classList.toggle("no-fab", page === "bank");
+    document.body.classList.toggle("no-fab", page === "bank" || page === "more");
     window.scrollTo(0, 0);
     render();
   });
@@ -1196,6 +1206,26 @@
       return d && Array.isArray(d.entries) && d.entries.length ? d : null;
     } catch (e) { return null; }
   }
+
+  function renderCardList() {
+    document.getElementById("cardList").innerHTML = `
+      <div class="data-row" data-act="billday">
+        <div><div class="name">카드 결제일</div><div class="sub">${settings.billDay ? `매달 ${settings.billDay}일 · 할부 청구일 계산에 사용` : "설정 안 함 · 결제한 날짜 기준으로 계산"}</div></div>
+        <span class="arrow">›</span>
+      </div>`;
+  }
+  document.getElementById("cardList").onclick = async e => {
+    if (!e.target.closest('[data-act="billday"]')) return;
+    const v = await uiDialog({
+      title: "카드 결제일",
+      message: "매달 카드값이 나가는 날을 입력하세요. 비워두면 결제한 날짜 기준으로 계산해요.",
+      input: { value: settings.billDay ? String(settings.billDay) : "", numeric: true, placeholder: "예: 14", maxLength: 2 },
+      validate: v => v.trim() === "" || (/^\d+$/.test(v.trim()) && +v >= 1 && +v <= 31) ? "" : "1~31 사이 숫자로 입력해 주세요"
+    });
+    if (v === null) return;
+    settings.billDay = v.trim() === "" ? null : Number(v);
+    saveSettings(); reapplyBillDay(); render();
+  };
 
   function renderDataList() {
     let last = null;
