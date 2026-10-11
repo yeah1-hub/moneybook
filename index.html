@@ -753,7 +753,7 @@
       return `<div class="bank-row" data-debt="${g.t.inst.gid}">
         <div class="left" style="min-width:0"><span class="cdot" style="background:${catColor("expense", g.t.category)}"></span><div style="min-width:0">
           <div class="name">${escHtml(g.t.category || "카드 할부")} <span class="inst-tag">${paid}/${g.t.inst.n}</span></div>
-          ${g.t.memo ? `<div class="sub">${escHtml(g.t.memo)}</div>` : ""}
+          ${g.t.memo ? `<div class="sub" style="font-weight:300">${escHtml(g.t.memo)}</div>` : ""}
         </div></div>
         <div class="money" style="color:var(--expense)">${won(g.left)}</div>
       </div>`;
