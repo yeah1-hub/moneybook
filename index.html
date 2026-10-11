@@ -72,16 +72,17 @@
   .track { display: flex; align-items: flex-start; width: 300%; transform: translateX(-33.3333%); will-change: transform; }
   .track.animate { transition: transform 0.28s ease-out; }
   .panel { width: 33.3333%; }
-  .day { min-height: 58px; padding: 6px 2px 4px; border-top: 1px solid var(--line); text-align: center; font-size: 13px; }
-  .day .num { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 50%; }
+  .day { min-height: 56px; padding: 4px 2px 3px; border-top: 1px solid var(--line); text-align: center; font-size: 13px; }
+  .day .num { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; }
   .day.sun .num { color: var(--sun); }
   .day.sat .num { color: var(--sat); }
   .day.other { opacity: 0.3; }
   .day.today .num { background: var(--today); color: #fff; font-weight: 600; }
-  .day .amt { font-size: 10px; line-height: 1.35; margin-top: 2px; white-space: nowrap; overflow: hidden; }
+  .day .amt { font-size: 10px; font-weight: 300; line-height: 12px; white-space: nowrap; overflow: hidden; }
+  .day .num + .amt { margin-top: 1px; }
   .day .amt.in { color: var(--income); }
   .day .amt.out { color: var(--expense); }
-  .day .amt.save { color: var(--saving); }
+  .day .amt.sv { color: var(--saving); }
   .day { cursor: pointer; }
   .day.selected { background: var(--bg); }
 
@@ -594,7 +595,7 @@
       if (key && daily[key]) {
         if (daily[key].out) amt += `<div class="amt out">${daily[key].out.toLocaleString()}</div>`;
         if (daily[key].in) amt += `<div class="amt in">${daily[key].in.toLocaleString()}</div>`;
-        if (daily[key].save) amt += `<div class="amt save">${daily[key].save.toLocaleString()}</div>`;
+        if (daily[key].save) amt += `<div class="amt sv">${daily[key].save.toLocaleString()}</div>`;
       }
       html += `<div class="${cls}"${key ? ` data-date="${key}"` : ""}><span class="num">${num}</span>${amt}</div>`;
     }
