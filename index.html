@@ -34,12 +34,16 @@
     font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif;
     padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 24px);
     max-width: 480px; margin: 0 auto;
-    overflow-x: hidden;
+    overflow-x: clip; /* hidden이면 상단 고정(sticky)이 안 됨 */
     user-select: none; -webkit-user-select: none;
   }
 
   /* 월 표시 */
   .month-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 16px; }
+  /* 상단 메뉴 고정: 스크롤해도 화면 위에 붙어 있게 */
+  .month-bar, .page-title { position: sticky; top: 0; z-index: 30; background: var(--bg);
+    margin: calc(-1 * (env(safe-area-inset-top) + 12px)) -16px 0;
+    padding-top: calc(env(safe-area-inset-top) + 20px); padding-left: 16px; padding-right: 16px; }
   .month-bar h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
   .month-bar h1 { text-align: center; line-height: 1.15; }
   .month-bar h1 .year { display: block; font-size: 12px; font-weight: 400; color: var(--sub); margin-bottom: 2px; }
@@ -136,7 +140,7 @@
   .stat-row .total { font-size: 15px; font-weight: 700; min-width: 92px; text-align: right; flex: none; }
 
   /* 저금통 */
-  .page-title { font-size: 22px; font-weight: 700; padding: 8px 0 16px; text-align: center; }
+  .page-title { font-size: 22px; font-weight: 700; padding-bottom: 16px; text-align: center; }
   .asset-hero { background: var(--text); color: #fff; border-radius: 18px; padding: 22px 20px; }
   .asset-hero .t1 { font-size: 13px; opacity: 0.7; }
   .asset-hero .t2 { font-size: 30px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px; }
