@@ -336,6 +336,12 @@
   <div class="section-title"><span>저금</span><span id="savingTotal"></span></div>
   <div class="list-card" style="margin-top:0" id="savingList"></div>
   <div class="bank-tip">항목을 누르면 앱을 쓰기 전부터 있던 시작 금액을 넣을 수 있어요</div>
+
+  <div id="debtWrap" hidden>
+    <div class="section-title"><span>갚을 할부</span><span id="debtTotal" style="color:var(--expense)"></span></div>
+    <div class="list-card" style="margin-top:0" id="debtList"></div>
+    <div class="bank-tip">캘린더에 기록한 카드 할부 중 아직 청구되지 않은 금액이에요</div>
+  </div>
 </section>
 
 <!-- 더보기 -->
@@ -720,11 +726,32 @@
       <div class="bank-row" data-start="cash">
         <div><div class="name">현금 잔액</div>${start.cash ? `<div class="sub">시작 금액 ${start.cash.toLocaleString()}원 포함</div>` : ""}</div>
         <div class="money">${won(cash)}</div>
-      </div>
-      ${instLeft ? `<div class="bank-row" style="cursor:default">
-        <div><div class="name">남은 카드 할부</div></div>
-        <div class="money" style="color:var(--expense)">${won(instLeft)}</div>
-      </div>` : ""}`;
+      </div>`;
+
+    // 갚을 할부: 할부 묶음별로 아직 청구 안 된 회차 합계
+    const groups = {};
+    transactions.forEach(t => {
+      if (!t.inst || t.date <= todayKey) return;
+      const g = groups[t.inst.gid] || (groups[t.inst.gid] = { t, left: 0, count: 0, next: t.date, nextAmt: t.amount, last: t.date });
+      g.left += t.amount; g.count++;
+      if (t.date < g.next) { g.next = t.date; g.nextAmt = t.amount; }
+      if (t.date > g.last) g.last = t.date;
+    });
+    const debts = Object.values(groups).sort((a, b) => a.last < b.last ? -1 : 1);
+    document.getElementById("debtWrap").hidden = !debts.length;
+    document.getElementById("debtTotal").textContent = instLeft ? won(instLeft) : "";
+    document.getElementById("debtList").innerHTML = debts.map(g => {
+      const [ly, lm] = g.last.split("-").map(Number);
+      const title = g.t.memo || g.t.category || "카드 할부";
+      const paid = g.t.inst.n - g.count;
+      return `<div class="bank-row" style="cursor:default">
+        <div style="min-width:0">
+          <div class="name">${escHtml(title)} <span class="inst-tag">${paid}/${g.t.inst.n}</span></div>
+          <div class="sub">매달 ${g.nextAmt.toLocaleString()}원 · ${String(ly).slice(2)}년 ${lm}월 완납</div>
+        </div>
+        <div class="money" style="color:var(--expense)">${won(g.left)}</div>
+      </div>`;
+    }).join("");
 
     document.getElementById("savingList").innerHTML = savingRows.map(r => `
       <div class="bank-row" data-start-saving="${escHtml(r.name)}">
