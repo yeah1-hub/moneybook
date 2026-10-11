@@ -358,7 +358,7 @@
 <div class="dlg-dim" id="dlgDim">
   <div class="dlg">
     <h4 id="dlgTitle"></h4>
-    <p id="dlgMsg"></p>
+    <p id="dlgMsg" style="white-space:pre-line"></p>
     <input id="dlgInput">
     <div class="swatches" id="dlgSwatches"></div>
     <div class="err" id="dlgErr"></div>
@@ -701,6 +701,7 @@
   try { start = Object.assign(start, JSON.parse(localStorage.getItem("mb_start") || "{}")); } catch (e) {}
   const saveStart = () => { try { localStorage.setItem("mb_start", JSON.stringify(start)); } catch (e) {} };
 
+  let debtInfo = {};
   function renderBank() {
     // 오늘까지의 기록만 자산에 반영 (앞으로 나갈 할부는 제외)
     const todayKey = keyOf(today.getFullYear(), today.getMonth(), today.getDate());
@@ -738,19 +739,21 @@
       if (t.date > g.last) g.last = t.date;
     });
     const debts = Object.values(groups).sort((a, b) => a.last < b.last ? -1 : 1);
+    debtInfo = {};
     document.getElementById("debtWrap").hidden = !debts.length;
     document.getElementById("debtTotal").textContent = instLeft ? won(instLeft) : "";
     document.getElementById("debtList").innerHTML = debts.map(g => {
       const [ly, lm] = g.last.split("-").map(Number);
-      const title = g.t.memo || g.t.category || "카드 할부";
       const paid = g.t.inst.n - g.count;
       const [by, bm, bd] = (g.t.inst.buy || g.t.date).split("-").map(Number);
-      const buyLabel = `${String(by).slice(2)}.${bm}.${bd}`;
-      return `<div class="bank-row" style="cursor:default">
+      debtInfo[g.t.inst.gid] = {
+        title: `${g.t.category || "카드 할부"}${g.t.memo ? " · " + g.t.memo : ""}`,
+        message: `결제일  ${by}년 ${bm}월 ${bd}일\n완납  ${ly}년 ${lm}월\n매달  ${g.nextAmt.toLocaleString()}원\n\n총 ${g.t.inst.total.toLocaleString()}원 · ${g.t.inst.n}개월 중 ${g.count}회 남음`
+      };
+      return `<div class="bank-row" data-debt="${g.t.inst.gid}">
         <div class="left" style="min-width:0"><span class="cdot" style="background:${catColor("expense", g.t.category)}"></span><div style="min-width:0">
-          <div class="name">${escHtml(title)} <span class="inst-tag">${paid}/${g.t.inst.n}</span></div>
-          <div class="sub">${g.t.memo && g.t.category ? escHtml(g.t.category) + " · " : ""}${buyLabel} 결제 · 총 ${g.t.inst.total.toLocaleString()}원</div>
-          <div class="sub">매달 ${g.nextAmt.toLocaleString()}원 · ${String(ly).slice(2)}년 ${lm}월 완납</div>
+          <div class="name">${escHtml(g.t.category || "카드 할부")} <span class="inst-tag">${paid}/${g.t.inst.n}</span></div>
+          ${g.t.memo ? `<div class="sub">${escHtml(g.t.memo)}</div>` : ""}
         </div></div>
         <div class="money" style="color:var(--expense)">${won(g.left)}</div>
       </div>`;
@@ -777,6 +780,12 @@
     const n = await askStart("현금 시작 금액", start.cash);
     if (n === null) return;
     start.cash = n; saveStart(); renderBank();
+  };
+  // 할부 누르면 결제일·완납·매달 금액 보기
+  document.getElementById("debtList").onclick = e => {
+    const row = e.target.closest("[data-debt]");
+    const info = row && debtInfo[row.dataset.debt];
+    if (info) uiDialog({ title: info.title, message: info.message, noCancel: true });
   };
   document.getElementById("savingList").onclick = async e => {
     const row = e.target.closest("[data-start-saving]");
