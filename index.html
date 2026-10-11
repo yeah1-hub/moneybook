@@ -81,6 +81,7 @@
   .day .amt { font-size: 10px; line-height: 1.35; margin-top: 2px; white-space: nowrap; overflow: hidden; }
   .day .amt.in { color: var(--income); }
   .day .amt.out { color: var(--expense); }
+  .day .amt.save { color: var(--saving); }
   .day { cursor: pointer; }
   .day.selected { background: var(--bg); }
 
@@ -571,9 +572,10 @@
     // 날짜별 합계
     const daily = {};
     monthTx(y, m).forEach(t => {
-      const d = daily[t.date] || (daily[t.date] = { in: 0, out: 0 });
+      const d = daily[t.date] || (daily[t.date] = { in: 0, out: 0, save: 0 });
       if (t.type === "income") d.in += t.amount;
       else if (t.type === "expense") d.out += t.amount;
+      else if (t.type === "saving") d.save += t.amount;
     });
 
     let html = '<div class="days">';
@@ -592,6 +594,7 @@
       if (key && daily[key]) {
         if (daily[key].out) amt += `<div class="amt out">${daily[key].out.toLocaleString()}</div>`;
         if (daily[key].in) amt += `<div class="amt in">${daily[key].in.toLocaleString()}</div>`;
+        if (daily[key].save) amt += `<div class="amt save">${daily[key].save.toLocaleString()}</div>`;
       }
       html += `<div class="${cls}"${key ? ` data-date="${key}"` : ""}><span class="num">${num}</span>${amt}</div>`;
     }
