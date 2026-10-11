@@ -744,11 +744,14 @@
       const [ly, lm] = g.last.split("-").map(Number);
       const title = g.t.memo || g.t.category || "카드 할부";
       const paid = g.t.inst.n - g.count;
+      const [by, bm, bd] = (g.t.inst.buy || g.t.date).split("-").map(Number);
+      const buyLabel = `${String(by).slice(2)}.${bm}.${bd}`;
       return `<div class="bank-row" style="cursor:default">
-        <div style="min-width:0">
+        <div class="left" style="min-width:0"><span class="cdot" style="background:${catColor("expense", g.t.category)}"></span><div style="min-width:0">
           <div class="name">${escHtml(title)} <span class="inst-tag">${paid}/${g.t.inst.n}</span></div>
+          <div class="sub">${g.t.memo && g.t.category ? escHtml(g.t.category) + " · " : ""}${buyLabel} 결제 · 총 ${g.t.inst.total.toLocaleString()}원</div>
           <div class="sub">매달 ${g.nextAmt.toLocaleString()}원 · ${String(ly).slice(2)}년 ${lm}월 완납</div>
-        </div>
+        </div></div>
         <div class="money" style="color:var(--expense)">${won(g.left)}</div>
       </div>`;
     }).join("");
