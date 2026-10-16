@@ -196,6 +196,15 @@
   .inst-pill { border: none; font-size: 14px; color: var(--sub); padding: 4px 10px; border-radius: 14px; background: var(--bg); font-family: inherit; cursor: pointer; }
   .inst-pill.on { background: var(--accent); color: #fff; font-weight: 600; }
   .sheet:not([data-type="expense"]) .inst-pill { display: none; }
+  /* 저축: 넣기 / 꺼내기 */
+  .sv-mode { display: none; background: var(--bg); border-radius: 14px; padding: 2px; }
+  .sheet[data-type="saving"] .sv-mode { display: flex; }
+  .sv-mode button { border: none; background: none; font-size: 14px; padding: 3px 10px; border-radius: 12px; color: var(--sub); font-family: inherit; cursor: pointer; }
+  .sv-mode button.on { background: var(--accent); color: #fff; font-weight: 600; }
+  .to-row { display: none; justify-content: center; margin: -4px 0 12px; }
+  .sheet[data-type="saving"].out .to-row { display: flex; }
+  .to-pill { border: none; font-size: 14px; color: var(--text); padding: 6px 14px; border-radius: 14px; background: var(--bg); font-family: inherit; cursor: pointer; }
+  .to-pill b { color: var(--accent); }
   .inst-hint { text-align: center; font-size: 13px; color: var(--sub); margin: -10px 0 12px; min-height: 0; }
   .inst-hint:empty { display: none; }
   .inst-tag { font-size: 11px; font-weight: 600; color: var(--expense); background: #fdecec; padding: 2px 6px; border-radius: 8px; margin-left: 6px; vertical-align: 2px; }
@@ -381,6 +390,14 @@
   </div>
 </div>
 
+<div class="dlg-dim" id="toDim">
+  <div class="dlg">
+    <h4>어디로 옮길까요?</h4>
+    <div class="inst-grid" id="toGrid"></div>
+    <div class="btns" style="grid-template-columns:1fr"><button class="cancel" id="toCancel">닫기</button></div>
+  </div>
+</div>
+
 <nav class="tabbar">
   <button class="active" data-page="home" aria-label="홈">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
@@ -409,9 +426,11 @@
     <div class="pill-row">
       <div class="date-row"><span id="dateLabel"></span> ▾<input type="date" id="dateInput"></div>
       <button class="inst-pill" id="instPill">일시불 ▾</button>
+      <div class="sv-mode" id="svMode"><button data-out="0" class="on">넣기</button><button data-out="1">꺼내기</button></div>
     </div>
     <div class="amount empty" id="amount">0원</div>
     <div class="inst-hint" id="instHint"></div>
+    <div class="to-row"><button class="to-pill" id="toPill"></button></div>
     <input class="memo" id="memo" type="text" maxlength="40" placeholder="메모">
     <div class="cat-row">
       <div class="cats" id="cats"></div>
@@ -513,6 +532,10 @@
   const pad = n => String(n).padStart(2, "0");
   const keyOf = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
+  // 저축 기록이 현금에서 저금으로 옮긴 금액
+  // 넣기: +금액 / 꺼내서 현금으로: -금액 / 저축끼리 옮기기: 0
+  const svCash = t => t.type !== "saving" ? 0 : !t.out ? t.amount : (t.to ? 0 : -t.amount);
+
   function monthTx(y, m) {
     const prefix = `${y}-${pad(m + 1)}-`;
     return transactions.filter(t => t.date.startsWith(prefix));
@@ -522,7 +545,7 @@
   function renderSummary() {
     const list = monthTx(viewYear, viewMonth);
     const sum = type => list.filter(t => t.type === type).reduce((a, t) => a + t.amount, 0);
-    const income = sum("income"), expense = sum("expense"), saving = sum("saving");
+    const income = sum("income"), expense = sum("expense"), saving = list.reduce((a, t) => a + svCash(t), 0);
     document.getElementById("sumIncome").textContent = won(income);
     document.getElementById("sumExpense").textContent = won(expense);
     document.getElementById("sumSaving").textContent = won(saving);
@@ -551,9 +574,9 @@
     document.getElementById("recordList").innerHTML = list.length
       ? list.map(t => `
           <div class="record ${t.type}" data-idx="${transactions.indexOf(t)}">
-            <span class="badge">${TYPE_LABEL[t.type]}</span>
+            <span class="badge">${t.out ? (t.to ? "옮김" : "꺼냄") : TYPE_LABEL[t.type]}</span>
             <div class="info">
-              <div class="cat-name">${escHtml(t.category || "")}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : ""}</div>
+              <div class="cat-name">${escHtml(t.category || "")}${t.out ? ` → ${escHtml(t.to || "현금")}` : ""}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : ""}</div>
               ${t.memo ? `<div class="memo-text">${escHtml(t.memo)}</div>` : ""}
             </div>
             <div class="money">${t.amount.toLocaleString()}원</div>
@@ -580,7 +603,7 @@
       const d = daily[t.date] || (daily[t.date] = { in: 0, out: 0, save: 0 });
       if (t.type === "income") d.in += t.amount;
       else if (t.type === "expense") d.out += t.amount;
-      else if (t.type === "saving") d.save += t.amount;
+      else if (t.type === "saving") d.save += svCash(t);
     });
 
     let html = '<div class="days">';
@@ -709,23 +732,33 @@
   try { start = Object.assign(start, JSON.parse(localStorage.getItem("mb_start") || "{}")); } catch (e) {}
   const saveStart = () => { try { localStorage.setItem("mb_start", JSON.stringify(start)); } catch (e) {} };
 
+  // 저축명별 잔액 = 시작 금액 + 넣은 돈 - 꺼낸 돈 + 다른 저축에서 옮겨온 돈
+  function savingBalances(list) {
+    const bal = {};
+    const add = (n, v) => { if (n) bal[n] = (bal[n] || 0) + v; };
+    Object.keys(start.saving).forEach(n => add(n, start.saving[n] || 0));
+    list.forEach(t => {
+      if (t.type !== "saving") return;
+      if (!t.out) add(t.category, t.amount);
+      else { add(t.category, -t.amount); add(t.to, t.amount); }
+    });
+    return bal;
+  }
+
   let debtInfo = {};
   function renderBank() {
     // 오늘까지의 기록만 자산에 반영 (앞으로 나갈 할부는 제외)
     const todayKey = keyOf(today.getFullYear(), today.getMonth(), today.getDate());
     const past = transactions.filter(t => t.date <= todayKey);
     const sumAll = type => past.filter(t => t.type === type).reduce((a, t) => a + t.amount, 0);
-    const cash = start.cash + sumAll("income") - sumAll("expense") - sumAll("saving");
+    const cash = start.cash + sumAll("income") - sumAll("expense") - past.reduce((a, t) => a + svCash(t), 0);
     const instLeft = transactions.filter(t => t.inst && t.date > todayKey).reduce((a, t) => a + t.amount, 0);
 
     // 저금 카테고리별 (카테고리 목록 + 기록에만 있는 이름까지)
+    const bal = savingBalances(past);
     const names = [...CATEGORIES.saving];
-    transactions.forEach(t => { if (t.type === "saving" && t.category && !names.includes(t.category)) names.push(t.category); });
-    Object.keys(start.saving).forEach(n => { if (!names.includes(n)) names.push(n); });
-    const savingRows = names.map(n => {
-      const added = past.filter(t => t.type === "saving" && t.category === n).reduce((a, t) => a + t.amount, 0);
-      return { name: n, start: start.saving[n] || 0, total: (start.saving[n] || 0) + added };
-    });
+    Object.keys(bal).forEach(n => { if (!names.includes(n)) names.push(n); });
+    const savingRows = names.map(n => ({ name: n, start: start.saving[n] || 0, total: bal[n] || 0 }));
     const savingTotal = savingRows.reduce((a, r) => a + r.total, 0);
 
     document.getElementById("assetTotal").textContent = won(cash + savingTotal);
@@ -932,7 +965,7 @@
     else if (r.left < box.left) catsEl.scrollLeft -= box.left - r.left + 8;
   }
 
-  function selectCategory(name) { form.category = name; renderCats(); renderAmount(); revealSelected(); }
+  function selectCategory(name) { form.category = name; if (form.to === name) form.to = null; renderCats(); renderAmount(); revealSelected(); }
 
   // + 추가
   addBtn.onclick = async () => {
@@ -1011,7 +1044,11 @@
       catColors[form.type][next] = res.color; saveCatColors();
       if (next !== name) list[list.indexOf(name)] = next;
       // 이미 저장된 내역의 카테고리 이름도 같이 바꿈
-      transactions.forEach(t => { if (t.type === form.type && t.category === name) t.category = next; });
+      transactions.forEach(t => {
+        if (t.type === form.type && t.category === name) t.category = next;
+        if (t.type === form.type && t.to === name) t.to = next;
+      });
+      if (form.to === name) form.to = next;
       try { localStorage.setItem("mb_transactions", JSON.stringify(transactions)); } catch (err) {}
       if (form.category === name) form.category = next;
       if (next !== name && form.type === "saving" && start.saving[name] !== undefined) {
@@ -1026,7 +1063,19 @@
     const n = Number(form.amount || 0);
     amountEl.textContent = won(n);
     amountEl.classList.toggle("empty", n === 0);
-    saveBtn.disabled = !(n > 0 && form.category);
+    const out = form.type === "saving" && form.out;
+    saveBtn.disabled = !(n > 0 && form.category) || (out && form.to === form.category);
+
+    // 꺼내기: 보낼 곳 + 잔액 표시
+    document.getElementById("toPill").innerHTML = `보낼 곳 · <b>${esc(form.to || "현금")}</b> ▾`;
+    if (out) {
+      const others = transactions.filter((t, i) => !(editingIdx !== null && i === editingIdx));
+      const left = form.category ? (savingBalances(others)[form.category] || 0) : null;
+      document.getElementById("instHint").textContent = form.category
+        ? `${form.category} 잔액 ${left.toLocaleString()}원${n > left ? " · 잔액보다 많아요" : ""}`
+        : "어느 저축에서 꺼낼지 골라주세요";
+      return;
+    }
 
     // 할부 표시
     const months = form.type === "expense" ? (form.months || 1) : 1;
@@ -1127,10 +1176,40 @@
     renderAmount();
   };
 
+  // ===== 저축 넣기 / 꺼내기 =====
+  function setOut(on) {
+    form.out = !!on;
+    if (!on) form.to = null;
+    sheet.classList.toggle("out", form.type === "saving" && form.out);
+    document.querySelectorAll("#svMode button").forEach(b => b.classList.toggle("on", (b.dataset.out === "1") === form.out));
+  }
+  document.getElementById("svMode").onclick = e => {
+    const b = e.target.closest("[data-out]");
+    if (!b) return;
+    setOut(b.dataset.out === "1");
+    renderAmount();
+  };
+  const toDim = document.getElementById("toDim");
+  document.getElementById("toPill").onclick = () => {
+    const opts = [null, ...CATEGORIES.saving.filter(n => n !== form.category)];
+    document.getElementById("toGrid").innerHTML = opts.map(n =>
+      `<button data-to="${n === null ? "" : esc(n)}" class="${n === (form.to || null) ? "on" : ""}">${n === null ? "현금" : esc(n)}</button>`).join("");
+    toDim.classList.add("show");
+  };
+  document.getElementById("toCancel").onclick = () => toDim.classList.remove("show");
+  document.getElementById("toGrid").onclick = e => {
+    const b = e.target.closest("[data-to]");
+    if (!b) return;
+    form.to = b.dataset.to || null;
+    toDim.classList.remove("show");
+    renderAmount();
+  };
+
   function setType(type) {
     form.type = type;
     form.category = null;
     sheet.dataset.type = type;
+    setOut(false);
     document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.type === type));
     catsEl.scrollLeft = 0;
     renderCats(); renderAmount();
@@ -1153,6 +1232,7 @@
       // 지운 카테고리로 저장된 기록이면 목록에 다시 넣어줌
       if (t.category && !CATEGORIES[t.type].includes(t.category)) { CATEGORIES[t.type].push(t.category); saveCats(); }
       form.category = t.category;
+      if (t.out) { setOut(true); form.to = t.to || null; }
       renderCats(); renderAmount(); revealSelected();
     }
     sheet.classList.toggle("editing", !!t);
@@ -1216,7 +1296,9 @@
         inst: { gid, i: i + 1, n: months, total, buy: form.date }
       }));
     } else {
-      transactions.push({ date: form.date, type: form.type, amount: total, category: form.category, memo });
+      const rec = { date: form.date, type: form.type, amount: total, category: form.category, memo };
+      if (form.type === "saving" && form.out) { rec.out = true; rec.to = form.to || null; }
+      transactions.push(rec);
     }
     transactions.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
     editingIdx = null;
