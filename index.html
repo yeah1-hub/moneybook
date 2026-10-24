@@ -156,6 +156,11 @@
   .data-row .name { font-size: 15px; font-weight: 600; }
   .data-row .sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
   .data-row .arrow { color: #c4c8ce; font-size: 18px; }
+  /* 저금 순서 바꾸기 (꾹 눌러서 끌기) */
+  #savingList .bank-row { position: relative; background: var(--card); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #savingList.sorting .bank-row { transition: transform 0.18s ease-out; }
+  #savingList.sorting .bank-row.dragging { transition: none; z-index: 5; box-shadow: 0 6px 18px rgba(0,0,0,0.14); border-radius: 12px; }
+  #savingList.sorting { overflow: visible; }
   .bank-tip { font-size: 12px; color: var(--sub); text-align: center; margin-top: 14px; }
 
   /* + 플로팅 버튼 */
@@ -364,7 +369,7 @@
 
   <div class="section-title"><span>저금</span><span id="savingTotal"></span></div>
   <div class="list-card" style="margin-top:0" id="savingList"></div>
-  <div class="bank-tip">항목을 누르면 앱을 쓰기 전부터 있던 시작 금액을 넣을 수 있어요</div>
+  <div class="bank-tip">항목을 누르면 시작 금액을 넣을 수 있고, 꾹 누르면 순서를 바꿀 수 있어요</div>
 
   <div id="debtWrap" hidden>
     <div class="section-title"><span>갚을 할부</span><span id="debtTotal" style="color:var(--expense)"></span></div>
@@ -670,8 +675,8 @@
 
       let amt = "";
       if (key && daily[key]) {
-        if (daily[key].out) amt += `<div class="amt out">${daily[key].out.toLocaleString()}</div>`;
-        if (daily[key].in) amt += `<div class="amt in">${daily[key].in.toLocaleString()}</div>`;
+        if (daily[key].out) amt += `<div class="amt out">-${daily[key].out.toLocaleString()}</div>`;
+        if (daily[key].in) amt += `<div class="amt in">+${daily[key].in.toLocaleString()}</div>`;
         if (daily[key].save) amt += `<div class="amt sv">${daily[key].save.toLocaleString()}</div>`;
       }
       html += `<div class="${cls}"${key ? ` data-date="${key}"` : ""}><span class="num">${num}</span>${amt}</div>`;
@@ -899,7 +904,74 @@
     const info = row && debtInfo[row.dataset.debt];
     if (info) uiDialog({ title: info.title, message: info.message, noCancel: true });
   };
+  // 꾹 눌러서 저금 항목 순서 바꾸기
+  let sortJustEnded = false;
+  (() => {
+    const list = document.getElementById("savingList");
+    let timer = null, drag = null, startY = 0, startX = 0;
+    const rowsOf = () => [...list.querySelectorAll("[data-start-saving]")];
+    const cancelWait = () => { clearTimeout(timer); timer = null; };
+
+    list.addEventListener("touchstart", e => {
+      const row = e.target.closest("[data-start-saving]");
+      if (!row || e.touches.length > 1) return;
+      startY = e.touches[0].clientY; startX = e.touches[0].clientX;
+      cancelWait();
+      timer = setTimeout(() => {
+        timer = null;
+        const rows = rowsOf();
+        drag = { row, rows, from: rows.indexOf(row), to: rows.indexOf(row), h: row.offsetHeight };
+        list.classList.add("sorting");
+        row.classList.add("dragging");
+        if (navigator.vibrate) navigator.vibrate(10);
+      }, 450);
+    }, { passive: true });
+
+    list.addEventListener("touchmove", e => {
+      const y = e.touches[0].clientY, x = e.touches[0].clientX;
+      if (!drag) {
+        // 꾹 누르기 전에 움직이면 그냥 스크롤
+        if (timer && (Math.abs(y - startY) > 8 || Math.abs(x - startX) > 8)) cancelWait();
+        return;
+      }
+      e.preventDefault();   // 끄는 동안 화면 스크롤 막기
+      const dy = y - startY, { row, rows, from, h } = drag;
+      row.style.transform = `translateY(${dy}px)`;
+      const to = Math.max(0, Math.min(rows.length - 1, from + Math.round(dy / h)));
+      drag.to = to;
+      rows.forEach((r, i) => {
+        if (r === row) return;
+        let shift = 0;
+        if (to > from && i > from && i <= to) shift = -h;
+        if (to < from && i < from && i >= to) shift = h;
+        r.style.transform = shift ? `translateY(${shift}px)` : "";
+      });
+    }, { passive: false });
+
+    const finish = () => {
+      cancelWait();
+      if (!drag) return;
+      const { rows, from, to } = drag;
+      drag = null;
+      sortJustEnded = true; setTimeout(() => sortJustEnded = false, 400);
+      list.classList.remove("sorting");
+      rows.forEach(r => { r.style.transform = ""; r.classList.remove("dragging"); });
+      if (from === to) return;
+      const names = rows.map(r => r.dataset.startSaving);
+      const [moved] = names.splice(from, 1);
+      names.splice(to, 0, moved);
+      // 카테고리 목록 순서 저장 (기록에만 남은 이름은 목록에 새로 넣지 않음)
+      const inList = names.filter(n => CATEGORIES.saving.includes(n));
+      CATEGORIES.saving = inList.concat(CATEGORIES.saving.filter(n => !inList.includes(n)));
+      saveCats(); renderBank();
+    };
+    list.addEventListener("touchend", finish);
+    list.addEventListener("touchcancel", finish);
+    list.addEventListener("contextmenu", e => e.preventDefault());
+  })();
+
   document.getElementById("savingList").onclick = async e => {
+    if (sortJustEnded) return;   // 순서 바꾼 직후 손 뗄 때 금액 수정 창이 뜨지 않게
     const row = e.target.closest("[data-start-saving]");
     if (!row) return;
     const name = row.dataset.startSaving;
