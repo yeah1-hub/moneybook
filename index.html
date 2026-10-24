@@ -178,7 +178,8 @@
     transform: translateY(105%); transition: transform 0.28s ease-out; z-index: 40;
     height: 100vh; height: 100dvh; display: flex; flex-direction: column;
   }
-  .sheet .bottom { margin-top: auto; padding-top: 4px; }
+  .sheet .bottom { margin-top: 0; }
+  .sheet .memo { margin-top: auto; }
   .sheet.show { transform: translateY(0); }
   .grabber { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 12px; }
 
@@ -215,7 +216,7 @@
   .bill-day { width: 100%; margin-top: 14px; padding: 12px 14px; border: none; border-radius: 12px; background: var(--bg); font-size: 14px; font-family: inherit; color: var(--text); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
   .bill-day span:last-child { color: var(--sub); font-size: 13px; }
   .inst-grid button.on { background: var(--text); color: #fff; border-color: var(--text); font-weight: 600; }
-  .amount { text-align: center; font-size: 40px; font-weight: 700; letter-spacing: -0.5px; color: var(--accent); min-height: 52px; margin: 6px 0 14px; }
+  .amount { text-align: center; font-size: 40px; font-weight: 700; letter-spacing: -0.5px; color: var(--accent); min-height: 52px; margin: auto 0 14px; }
   .amount.empty { color: #c9cdd3; }
 
   .memo {
@@ -229,7 +230,7 @@
   .cat-input { flex: none; width: 110px; border: 1px solid var(--accent); border-radius: 20px; padding: 8px 14px; font-size: 16px; font-family: inherit; outline: none; user-select: text; -webkit-user-select: text; }
 
   /* 카테고리 2줄: 칩(가로 스크롤) + 오른쪽에 ⋯ / 추가 */
-  .cat-row { display: flex; align-items: stretch; gap: 8px; padding: 14px 0 14px; }
+  .cat-row { display: flex; align-items: stretch; gap: 8px; padding: 12px 0 12px; }
   .cats { display: flex; flex-direction: column; gap: 8px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none;
           -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); mask-image: linear-gradient(to right, #000 85%, transparent); }
   .cats::-webkit-scrollbar { display: none; }
