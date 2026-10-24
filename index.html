@@ -196,6 +196,8 @@
   .inst-pill { border: none; font-size: 14px; color: var(--sub); padding: 4px 10px; border-radius: 14px; background: var(--bg); font-family: inherit; cursor: pointer; }
   .inst-pill.on { background: var(--accent); color: #fff; font-weight: 600; }
   .sheet:not([data-type="expense"]) .inst-pill { display: none; }
+  .inst-pill.pay-card { background: var(--accent); color: #fff; font-weight: 600; }
+  .pay-tag { font-size: 11px; font-weight: 600; color: var(--sub); background: var(--bg); padding: 2px 6px; border-radius: 8px; margin-left: 6px; vertical-align: 2px; }
   /* 저축: 넣기 / 꺼내기 */
   .sv-mode { display: none; background: var(--bg); border-radius: 14px; padding: 2px; }
   .sheet[data-type="saving"] .sv-mode { display: flex; }
@@ -425,6 +427,7 @@
     </div>
     <div class="pill-row">
       <div class="date-row"><span id="dateLabel"></span> ▾<input type="date" id="dateInput"></div>
+      <button class="inst-pill" id="payPill">현금</button>
       <button class="inst-pill" id="instPill">일시불 ▾</button>
       <div class="sv-mode" id="svMode"><button data-out="0" class="on">넣기</button><button data-out="1">꺼내기</button></div>
     </div>
@@ -472,7 +475,7 @@
   let transactions = [];
   try { transactions = JSON.parse(localStorage.getItem("mb_transactions") || "[]"); } catch (e) { transactions = []; }
 
-  const today = new Date();
+  let today = new Date();
   let viewYear = today.getFullYear();
   let viewMonth = today.getMonth(); // 0~11
 
@@ -536,6 +539,9 @@
   // 넣기: +금액 / 꺼내서 현금으로: -금액 / 저축끼리 옮기기: 0
   const svCash = t => t.type !== "saving" ? 0 : !t.out ? t.amount : (t.to ? 0 : -t.amount);
 
+  // 현금 잔액에서 빠지는 지출: 카드로 쓴 건 제외
+  const cashOut = t => t.type === "expense" && t.pay !== "card" ? t.amount : 0;
+
   function monthTx(y, m) {
     const prefix = `${y}-${pad(m + 1)}-`;
     return transactions.filter(t => t.date.startsWith(prefix));
@@ -549,7 +555,8 @@
     document.getElementById("sumIncome").textContent = won(income);
     document.getElementById("sumExpense").textContent = won(expense);
     document.getElementById("sumSaving").textContent = won(saving);
-    document.getElementById("sumCash").textContent = won(income - expense - saving);
+    const cashExp = list.reduce((a, t) => a + cashOut(t), 0);
+    document.getElementById("sumCash").textContent = won(income - cashExp - saving);
     document.getElementById("monthTitle").innerHTML = `<span class="year">${viewYear}년</span>${viewMonth + 1}월`;
   }
 
@@ -576,7 +583,7 @@
           <div class="record ${t.type}" data-idx="${transactions.indexOf(t)}">
             <span class="badge">${t.out ? (t.to ? "옮김" : "꺼냄") : TYPE_LABEL[t.type]}</span>
             <div class="info">
-              <div class="cat-name">${escHtml(t.category || "")}${t.out ? ` → ${escHtml(t.to || "현금")}` : ""}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : ""}</div>
+              <div class="cat-name">${escHtml(t.category || "")}${t.out ? ` → ${escHtml(t.to || "현금")}` : ""}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : t.type === "expense" && t.pay === "card" ? `<span class="pay-tag">카드</span>` : ""}</div>
               ${t.memo ? `<div class="memo-text">${escHtml(t.memo)}</div>` : ""}
             </div>
             <div class="money">${t.amount.toLocaleString()}원</div>
@@ -642,6 +649,19 @@
     const h = document.getElementById("panelCur").offsetHeight;
     document.getElementById("viewport").style.height = h ? h + "px" : "";
   }
+
+  // 앱을 며칠 켜둬도 '오늘'이 옛날 날짜로 남지 않게, 다시 열 때마다 오늘 날짜 갱신
+  function refreshToday() {
+    const now = new Date();
+    if (keyOf(now.getFullYear(), now.getMonth(), now.getDate()) === keyOf(today.getFullYear(), today.getMonth(), today.getDate())) return;
+    const wasToday = selectedDate === keyOf(today.getFullYear(), today.getMonth(), today.getDate());
+    today = now;
+    if (wasToday) { viewYear = today.getFullYear(); viewMonth = today.getMonth(); selectedDate = keyOf(viewYear, viewMonth, today.getDate()); }
+    render();
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshToday(); });
+  window.addEventListener("focus", refreshToday);
+  window.addEventListener("pageshow", refreshToday);
 
   function render() { renderSummary(); renderCalendar(); renderRecords(); renderStats(); renderBank(); renderDataList(); renderCardList(); }
 
@@ -751,7 +771,7 @@
     const todayKey = keyOf(today.getFullYear(), today.getMonth(), today.getDate());
     const past = transactions.filter(t => t.date <= todayKey);
     const sumAll = type => past.filter(t => t.type === type).reduce((a, t) => a + t.amount, 0);
-    const cash = start.cash + sumAll("income") - sumAll("expense") - past.reduce((a, t) => a + svCash(t), 0);
+    const cash = start.cash + sumAll("income") - past.reduce((a, t) => a + cashOut(t), 0) - past.reduce((a, t) => a + svCash(t), 0);
     const instLeft = transactions.filter(t => t.inst && t.date > todayKey).reduce((a, t) => a + t.amount, 0);
 
     // 저금 카테고리별 (카테고리 목록 + 기록에만 있는 이름까지)
@@ -1082,6 +1102,10 @@
     const pill = document.getElementById("instPill");
     pill.textContent = months > 1 ? `${months}개월 할부 ▾` : "일시불 ▾";
     pill.classList.toggle("on", months > 1);
+    const payPill = document.getElementById("payPill");
+    const isCard = months > 1 || form.pay === "card";   // 할부는 항상 카드
+    payPill.textContent = isCard ? "카드" : "현금";
+    payPill.classList.toggle("pay-card", isCard);
     document.getElementById("instHint").textContent = months > 1 && n > 0
       ? (() => { const [, fm, fd] = billDate(form.date, 1).split("-").map(Number);
           return `${fm}월 ${fd}일부터 매달 ${splitInstallment(n, months)[0].toLocaleString()}원씩 ${months}개월`; })()
@@ -1176,6 +1200,14 @@
     renderAmount();
   };
 
+  // ===== 결제수단: 현금 / 카드 =====
+  document.getElementById("payPill").onclick = () => {
+    if ((form.months || 1) > 1) return;   // 할부는 카드로 고정
+    form.pay = form.pay === "card" ? "cash" : "card";
+    try { localStorage.setItem("mb_pay", form.pay); } catch (e) {}
+    renderAmount();
+  };
+
   // ===== 저축 넣기 / 꺼내기 =====
   function setOut(on) {
     form.out = !!on;
@@ -1222,7 +1254,8 @@
     const t = editingIdx !== null ? transactions[editingIdx] : null;
     // 할부 기록이면 첫 회차 날짜와 총액으로 열기
     const first = t && t.inst ? (transactions.find(x => x.inst && x.inst.gid === t.inst.gid && x.inst.i === 1) || t) : t;
-    form = { type: t ? t.type : "expense", amount: "", category: null, date: t && t.inst ? (t.inst.buy || first.date) : (t ? t.date : selectedDate), months: t && t.inst ? t.inst.n : 1 };
+    form = { type: t ? t.type : "expense", amount: "", category: null, date: t && t.inst ? (t.inst.buy || first.date) : (t ? t.date : selectedDate), months: t && t.inst ? t.inst.n : 1,
+      pay: t ? (t.pay || "cash") : (() => { try { return localStorage.getItem("mb_pay") || "cash"; } catch (e) { return "cash"; } })() };
     dateInput.value = form.date;
     document.getElementById("memo").value = t ? (t.memo || "") : "";
     updateDateLabel();
@@ -1292,12 +1325,13 @@
       const gid = Date.now().toString(36);
       splitInstallment(total, months).forEach((amt, i) => transactions.push({
         // 카드 할부는 결제한 다음 달부터 청구
-        date: billDate(form.date, i + 1), type: "expense", amount: amt, category: form.category, memo,
+        date: billDate(form.date, i + 1), type: "expense", amount: amt, category: form.category, memo, pay: "card",
         inst: { gid, i: i + 1, n: months, total, buy: form.date }
       }));
     } else {
       const rec = { date: form.date, type: form.type, amount: total, category: form.category, memo };
       if (form.type === "saving" && form.out) { rec.out = true; rec.to = form.to || null; }
+      if (form.type === "expense" && form.pay === "card") rec.pay = "card";
       transactions.push(rec);
     }
     transactions.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
