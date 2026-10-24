@@ -179,7 +179,8 @@
     height: 100vh; height: 100dvh; display: flex; flex-direction: column;
   }
   .sheet .bottom { margin-top: 0; }
-  .sheet .memo { margin-top: auto; }
+  .sheet .pay-row, .sheet:not([data-type="expense"]) .cat-row { margin-top: auto; }
+  .sheet .memo { margin-bottom: 12px; }
   .sheet.show { transform: translateY(0); }
   .grabber { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 12px; }
 
@@ -197,7 +198,14 @@
   .inst-pill { border: none; font-size: 14px; color: var(--sub); padding: 4px 10px; border-radius: 14px; background: var(--bg); font-family: inherit; cursor: pointer; }
   .inst-pill.on { background: var(--accent); color: #fff; font-weight: 600; }
   .sheet:not([data-type="expense"]) .inst-pill { display: none; }
-  .inst-pill.pay-card { background: var(--accent); color: #fff; font-weight: 600; }
+  #instPill { display: none; }
+  /* 결제수단 (지출만) */
+  .pay-row { display: none; align-items: center; gap: 8px; padding-top: 12px; }
+  .sheet[data-type="expense"] .pay-row { display: flex; }
+  .pays { display: flex; gap: 8px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; }
+  .pays::-webkit-scrollbar { display: none; }
+  .pay-row .cat.add { flex: none; }
+  .pays .cat { padding: 8px 12px; }
   .pay-tag { font-size: 11px; font-weight: 600; color: var(--sub); background: var(--bg); padding: 2px 6px; border-radius: 8px; margin-left: 6px; vertical-align: 2px; }
   /* 저축: 넣기 / 꺼내기 */
   .sv-mode { display: none; background: var(--bg); border-radius: 14px; padding: 2px; }
@@ -428,14 +436,16 @@
     </div>
     <div class="pill-row">
       <div class="date-row"><span id="dateLabel"></span> ▾<input type="date" id="dateInput"></div>
-      <button class="inst-pill" id="payPill">현금</button>
       <button class="inst-pill" id="instPill">일시불 ▾</button>
       <div class="sv-mode" id="svMode"><button data-out="0" class="on">넣기</button><button data-out="1">꺼내기</button></div>
     </div>
     <div class="amount empty" id="amount">0원</div>
     <div class="inst-hint" id="instHint"></div>
     <div class="to-row"><button class="to-pill" id="toPill"></button></div>
-    <input class="memo" id="memo" type="text" maxlength="40" placeholder="메모">
+    <div class="pay-row">
+      <div class="pays" id="pays"></div>
+      <button class="cat add" id="payAddBtn">+ 추가</button>
+    </div>
     <div class="cat-row">
       <div class="cats" id="cats"></div>
       <div class="cat-side">
@@ -443,6 +453,7 @@
         <button class="cat add" id="addBtn">+ 추가</button>
       </div>
     </div>
+    <input class="memo" id="memo" type="text" maxlength="40" placeholder="메모">
     <div class="bottom">
     <div class="keypad" id="keypad">
       <button class="key">1</button><button class="key">2</button><button class="key">3</button>
@@ -475,6 +486,15 @@
   // 다음 단계(입력 화면)에서 여기에 내역이 쌓이도록 연결하면 됩니다.
   let transactions = [];
   try { transactions = JSON.parse(localStorage.getItem("mb_transactions") || "[]"); } catch (e) { transactions = []; }
+  // 예전 '카드' 표시는 신용카드로
+  transactions.forEach(t => { if (t.pay === "card") t.pay = "신용카드"; });
+
+  // 결제수단 목록 (현금만 현금 잔액에서 빠짐)
+  let PAYS = ["현금", "체크카드", "신용카드"];
+  try { const v = JSON.parse(localStorage.getItem("mb_pays")); if (Array.isArray(v) && v.length) PAYS = v; } catch (e) {}
+  const savePays = () => { try { localStorage.setItem("mb_pays", JSON.stringify(PAYS)); } catch (e) {} };
+  const isCredit = name => /신용/.test(name || "");
+  const payOf = t => t.pay || (t.inst ? "신용카드" : "현금");
 
   let today = new Date();
   let viewYear = today.getFullYear();
@@ -541,7 +561,7 @@
   const svCash = t => t.type !== "saving" ? 0 : !t.out ? t.amount : (t.to ? 0 : -t.amount);
 
   // 현금 잔액에서 빠지는 지출: 카드로 쓴 건 제외
-  const cashOut = t => t.type === "expense" && t.pay !== "card" ? t.amount : 0;
+  const cashOut = t => t.type === "expense" && payOf(t) === "현금" ? t.amount : 0;
 
   function monthTx(y, m) {
     const prefix = `${y}-${pad(m + 1)}-`;
@@ -584,7 +604,7 @@
           <div class="record ${t.type}" data-idx="${transactions.indexOf(t)}">
             <span class="badge">${t.out ? (t.to ? "옮김" : "꺼냄") : TYPE_LABEL[t.type]}</span>
             <div class="info">
-              <div class="cat-name">${escHtml(t.category || "")}${t.out ? ` → ${escHtml(t.to || "현금")}` : ""}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : t.type === "expense" && t.pay === "card" ? `<span class="pay-tag">카드</span>` : ""}</div>
+              <div class="cat-name">${escHtml(t.category || "")}${t.out ? ` → ${escHtml(t.to || "현금")}` : ""}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : t.type === "expense" && payOf(t) !== "현금" ? `<span class="pay-tag">${escHtml(payOf(t))}</span>` : ""}</div>
               ${t.memo ? `<div class="memo-text">${escHtml(t.memo)}</div>` : ""}
             </div>
             <div class="money">${t.amount.toLocaleString()}원</div>
@@ -1112,10 +1132,7 @@
     const pill = document.getElementById("instPill");
     pill.textContent = months > 1 ? `${months}개월 할부 ▾` : "일시불 ▾";
     pill.classList.toggle("on", months > 1);
-    const payPill = document.getElementById("payPill");
-    const isCard = months > 1 || form.pay === "card";   // 할부는 항상 카드
-    payPill.textContent = isCard ? "카드" : "현금";
-    payPill.classList.toggle("pay-card", isCard);
+    renderPays();
     document.getElementById("instHint").textContent = months > 1 && n > 0
       ? (() => { const [, fm, fd] = billDate(form.date, 1).split("-").map(Number);
           return `${fm}월 ${fd}일부터 매달 ${splitInstallment(n, months)[0].toLocaleString()}원씩 ${months}개월`; })()
@@ -1210,12 +1227,43 @@
     renderAmount();
   };
 
-  // ===== 결제수단: 현금 / 카드 =====
-  document.getElementById("payPill").onclick = () => {
-    if ((form.months || 1) > 1) return;   // 할부는 카드로 고정
-    form.pay = form.pay === "card" ? "cash" : "card";
+  // ===== 결제수단 =====
+  const paysEl = document.getElementById("pays");
+  function renderPays() {
+    if (!paysEl) return;
+    const m = form.months || 1;
+    paysEl.innerHTML = PAYS.map(p => {
+      const on = p === form.pay;
+      const label = on && isCredit(p) ? `${p} ${m > 1 ? m + "개월" : "일시불"}` : p;
+      return `<button class="cat${on ? " active" : ""}" data-pay="${esc(p)}">${esc(label)}</button>`;
+    }).join("");
+    // 고른 결제수단이 가려지면 보이게 스크롤
+    const a = paysEl.querySelector(".active");
+    if (a) { const box = paysEl.getBoundingClientRect(), r = a.getBoundingClientRect();
+      if (r.right > box.right) paysEl.scrollLeft += r.right - box.right + 4;
+      else if (r.left < box.left) paysEl.scrollLeft -= box.left - r.left + 4; }
+  }
+  paysEl.onclick = e => {
+    const b = e.target.closest("[data-pay]");
+    if (!b) return;
+    form.pay = b.dataset.pay;
     try { localStorage.setItem("mb_pay", form.pay); } catch (e) {}
+    if (isCredit(form.pay)) { renderAmount(); document.getElementById("instPill").click(); }   // 신용카드: 일시불/할부 고르기
+    else { form.months = 1; renderAmount(); }
+  };
+  document.getElementById("payAddBtn").onclick = async () => {
+    const v = await uiDialog({
+      title: "결제수단 추가",
+      input: { value: "", maxLength: 10, placeholder: "예: 삼성카드, 계좌이체" },
+      validate: v => { const t = v.trim(); return !t ? "이름을 입력해 주세요" : PAYS.includes(t) ? "이미 있어요" : ""; }
+    });
+    if (!v) return;
+    PAYS.push(v.trim()); savePays();
+    form.pay = v.trim();
+    try { localStorage.setItem("mb_pay", form.pay); } catch (e) {}
+    form.months = 1;
     renderAmount();
+    paysEl.scrollLeft = paysEl.scrollWidth;
   };
 
   // ===== 저축 넣기 / 꺼내기 =====
@@ -1265,7 +1313,8 @@
     // 할부 기록이면 첫 회차 날짜와 총액으로 열기
     const first = t && t.inst ? (transactions.find(x => x.inst && x.inst.gid === t.inst.gid && x.inst.i === 1) || t) : t;
     form = { type: t ? t.type : "expense", amount: "", category: null, date: t && t.inst ? (t.inst.buy || first.date) : (t ? t.date : selectedDate), months: t && t.inst ? t.inst.n : 1,
-      pay: t ? (t.pay || "cash") : (() => { try { return localStorage.getItem("mb_pay") || "cash"; } catch (e) { return "cash"; } })() };
+      pay: t ? payOf(t) : (() => { let p = null; try { p = localStorage.getItem("mb_pay"); } catch (e) {}
+        return PAYS.includes(p) ? p : "현금"; })() };
     dateInput.value = form.date;
     document.getElementById("memo").value = t ? (t.memo || "") : "";
     updateDateLabel();
@@ -1335,13 +1384,13 @@
       const gid = Date.now().toString(36);
       splitInstallment(total, months).forEach((amt, i) => transactions.push({
         // 카드 할부는 결제한 다음 달부터 청구
-        date: billDate(form.date, i + 1), type: "expense", amount: amt, category: form.category, memo, pay: "card",
+        date: billDate(form.date, i + 1), type: "expense", amount: amt, category: form.category, memo, pay: form.pay || "신용카드",
         inst: { gid, i: i + 1, n: months, total, buy: form.date }
       }));
     } else {
       const rec = { date: form.date, type: form.type, amount: total, category: form.category, memo };
       if (form.type === "saving" && form.out) { rec.out = true; rec.to = form.to || null; }
-      if (form.type === "expense" && form.pay === "card") rec.pay = "card";
+      if (form.type === "expense") rec.pay = form.pay || "현금";
       transactions.push(rec);
     }
     transactions.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
@@ -1428,7 +1477,7 @@
     const now = new Date();
     const payload = {
       app: "moneybook", version: 3, exportedAt: now.toISOString(),
-      transactions, categories: CATEGORIES, catColors, start, settings
+      transactions, categories: CATEGORIES, catColors, start, settings, pays: PAYS
     };
     const name = `가계부-백업-${keyOf(now.getFullYear(), now.getMonth(), now.getDate())}.json`;
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -1472,6 +1521,7 @@
     if (!yes) return;
     transactions = d.transactions;
     if (d.categories) CATEGORIES = d.categories;
+    if (Array.isArray(d.pays) && d.pays.length) { PAYS = d.pays; savePays(); }
     catColors = Object.assign({ expense: {}, income: {}, saving: {} }, d.catColors || {});
     start = Object.assign({ cash: 0, saving: {} }, d.start || {});
     settings = Object.assign({ billDay: null }, d.settings || {});
