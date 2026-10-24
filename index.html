@@ -786,7 +786,7 @@
 
     document.getElementById("cashList").innerHTML = `
       <div class="bank-row" data-start="cash">
-        <div><div class="name">현금 잔액</div>${start.cash ? `<div class="sub">시작 금액 ${start.cash.toLocaleString()}원 포함</div>` : ""}</div>
+        <div><div class="name">현금 잔액</div></div>
         <div class="money">${won(cash)}</div>
       </div>`;
 
@@ -822,7 +822,7 @@
 
     document.getElementById("savingList").innerHTML = savingRows.map(r => `
       <div class="bank-row" data-start-saving="${escHtml(r.name)}">
-        <div class="left"><span class="cdot" style="background:${catColor("saving", r.name)}"></span><div><div class="name">${escHtml(r.name)}</div>${r.start ? `<div class="sub">시작 금액 ${r.start.toLocaleString()}원 포함</div>` : ""}</div></div>
+        <div class="left"><span class="cdot" style="background:${catColor("saving", r.name)}"></span><div><div class="name">${escHtml(r.name)}</div></div></div>
         <div class="money">${won(r.total)}</div>
       </div>`).join("");
   }
@@ -1093,7 +1093,7 @@
       const left = form.category ? (savingBalances(others)[form.category] || 0) : null;
       document.getElementById("instHint").textContent = form.category
         ? `${form.category} 잔액 ${left.toLocaleString()}원${n > left ? " · 잔액보다 많아요" : ""}`
-        : "어느 저축에서 꺼낼지 골라주세요";
+        : "";
       return;
     }
 
