@@ -577,6 +577,8 @@
   // 저축 기록이 현금에서 저금으로 옮긴 금액
   // 넣기: +금액 / 꺼내서 현금으로: -금액 / 저축끼리 옮기기: 0
   const svCash = t => t.type !== "saving" ? 0 : !t.out ? t.amount : (t.to ? 0 : -t.amount);
+  // 저축 카드·달력에 보이는 금액: 넣은 돈만 (꺼내기·옮기기는 표시 안 함)
+  const svIn = t => t.type === "saving" && !t.out ? t.amount : 0;
 
   // 현금 잔액에서 빠지는 지출: 카드로 쓴 건 제외
   const cashOut = t => t.type === "expense" && payOf(t) === "현금" ? t.amount : 0;
@@ -590,12 +592,14 @@
   function renderSummary() {
     const list = monthTx(viewYear, viewMonth);
     const sum = type => list.filter(t => t.type === type).reduce((a, t) => a + t.amount, 0);
-    const income = sum("income"), expense = sum("expense"), saving = list.reduce((a, t) => a + svCash(t), 0);
+    const income = sum("income"), expense = sum("expense");
+    const savingIn = list.reduce((a, t) => a + svIn(t), 0);     // 저축 카드: 넣은 돈만
+    const savingNet = list.reduce((a, t) => a + svCash(t), 0);  // 현금 계산: 꺼낸 돈은 현금으로 돌아옴
     document.getElementById("sumIncome").textContent = won(income);
     document.getElementById("sumExpense").textContent = won(expense);
-    document.getElementById("sumSaving").textContent = won(saving);
+    document.getElementById("sumSaving").textContent = won(savingIn);
     const cashExp = list.reduce((a, t) => a + cashOut(t), 0);
-    document.getElementById("sumCash").textContent = won(income - cashExp - saving);
+    document.getElementById("sumCash").textContent = won(income - cashExp - savingNet);
     document.getElementById("monthTitle").innerHTML = `<span class="year">${viewYear}년</span>${viewMonth + 1}월`;
   }
 
@@ -649,7 +653,7 @@
       const d = daily[t.date] || (daily[t.date] = { in: 0, out: 0, save: 0 });
       if (t.type === "income") d.in += t.amount;
       else if (t.type === "expense") d.out += t.amount;
-      else if (t.type === "saving") d.save += svCash(t);
+      else if (t.type === "saving") d.save += svIn(t);
     });
 
     let html = '<div class="days">';
