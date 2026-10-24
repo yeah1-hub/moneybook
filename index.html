@@ -766,6 +766,7 @@
   }
 
   let debtInfo = {};
+  let bankNow = { cash: 0, saving: {} };   // 저금통에 보이는 지금 잔액
   function renderBank() {
     // 오늘까지의 기록만 자산에 반영 (앞으로 나갈 할부는 제외)
     const todayKey = keyOf(today.getFullYear(), today.getMonth(), today.getDate());
@@ -781,6 +782,7 @@
     const savingRows = names.map(n => ({ name: n, start: start.saving[n] || 0, total: bal[n] || 0 }));
     const savingTotal = savingRows.reduce((a, r) => a + r.total, 0);
 
+    bankNow = { cash, saving: Object.fromEntries(savingRows.map(r => [r.name, r.total])) };
     document.getElementById("assetTotal").textContent = won(cash + savingTotal);
     document.getElementById("savingTotal").textContent = won(savingTotal);
 
@@ -829,7 +831,7 @@
 
   async function askStart(label, current) {
     const v = await uiDialog({
-      title: label, message: "앱을 쓰기 전부터 있던 금액을 입력하세요",
+      title: label, message: "지금 있는 금액으로 바꿔요",
       input: { value: current ? String(current) : "", numeric: true, placeholder: "0", maxLength: 13 },
       validate: v => /^-?[\d,]*$/.test(v.trim()) ? "" : "숫자만 입력해 주세요"
     });
@@ -838,9 +840,10 @@
   }
   document.getElementById("cashList").onclick = async e => {
     if (!e.target.closest('[data-start="cash"]')) return;
-    const n = await askStart("현금 시작 금액", start.cash);
+    const n = await askStart("현금 잔액 수정", bankNow.cash);
     if (n === null) return;
-    start.cash = n; saveStart(); renderBank();
+    // 입력한 금액이 그대로 보이도록 시작 금액을 맞춤
+    start.cash = (start.cash || 0) + n - bankNow.cash; saveStart(); renderBank();
   };
   // 할부 누르면 결제일·완납·매달 금액 보기
   document.getElementById("debtList").onclick = e => {
@@ -852,9 +855,10 @@
     const row = e.target.closest("[data-start-saving]");
     if (!row) return;
     const name = row.dataset.startSaving;
-    const n = await askStart(`${name} 시작 금액`, start.saving[name]);
+    const cur = bankNow.saving[name] || 0;
+    const n = await askStart(`${name} 금액 수정`, cur);
     if (n === null) return;
-    start.saving[name] = n; saveStart(); renderBank();
+    start.saving[name] = (start.saving[name] || 0) + n - cur; saveStart(); renderBank();
   };
 
   // 날짜 누르면 선택 (스와이프 중에는 무시)
