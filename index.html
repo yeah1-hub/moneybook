@@ -205,7 +205,7 @@
   .pays { display: flex; gap: 8px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; }
   .pays::-webkit-scrollbar { display: none; }
   .pay-row .cat.add { flex: none; }
-  .pays .cat { padding: 8px 12px; }
+  .pays .cat { padding: 8px 12px; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .pay-tag { font-size: 11px; font-weight: 600; color: var(--sub); background: var(--bg); padding: 2px 6px; border-radius: 8px; margin-left: 6px; vertical-align: 2px; }
   /* 저축: 넣기 / 꺼내기 */
   .sv-mode { display: none; background: var(--bg); border-radius: 14px; padding: 2px; }
@@ -1243,7 +1243,41 @@
       if (r.right > box.right) paysEl.scrollLeft += r.right - box.right + 4;
       else if (r.left < box.left) paysEl.scrollLeft -= box.left - r.left + 4; }
   }
+  // 길게 누르면 지우기 (현금은 못 지움)
+  let payPress = null, payLong = false;
+  async function askDeletePay(name) {
+    if (name === "현금") {
+      await uiDialog({ title: "현금은 지울 수 없어요", message: "현금 잔액 계산에 쓰여서 남겨둬요.", noCancel: true });
+      return;
+    }
+    const yes = await uiDialog({ title: `'${name}' 지우기`, message: "목록에서만 지워지고, 이미 적은 기록은 그대로 남아요.", okText: "지우기", danger: true });
+    if (!yes) return;
+    PAYS = PAYS.filter(p => p !== name); savePays();
+    if (form.pay === name) { form.pay = "현금"; form.months = 1; try { localStorage.setItem("mb_pay", "현금"); } catch (e) {} }
+    renderAmount();
+  }
+  paysEl.addEventListener("touchstart", e => {
+    const b = e.target.closest("[data-pay]");
+    payLong = false;
+    if (!b) return;
+    const x = e.touches[0].clientX, y = e.touches[0].clientY;
+    payPress = { b, x, y, t: setTimeout(() => { payLong = true; payPress = null; askDeletePay(b.dataset.pay); }, 550) };
+  }, { passive: true });
+  paysEl.addEventListener("touchmove", e => {
+    if (!payPress) return;
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - payPress.x) > 8 || Math.abs(t.clientY - payPress.y) > 8) { clearTimeout(payPress.t); payPress = null; }
+  }, { passive: true });
+  paysEl.addEventListener("touchend", () => { if (payPress) { clearTimeout(payPress.t); payPress = null; } });
+  paysEl.addEventListener("contextmenu", e => {   // 컴퓨터에서는 오른쪽 클릭
+    const b = e.target.closest("[data-pay]");
+    if (!b) return;
+    e.preventDefault();
+    if (!payLong) askDeletePay(b.dataset.pay);
+  });
+
   paysEl.onclick = e => {
+    if (payLong) { payLong = false; return; }   // 길게 누른 뒤 손 뗀 클릭은 무시
     const b = e.target.closest("[data-pay]");
     if (!b) return;
     form.pay = b.dataset.pay;
@@ -1254,6 +1288,7 @@
   document.getElementById("payAddBtn").onclick = async () => {
     const v = await uiDialog({
       title: "결제수단 추가",
+      message: "지울 때는 결제수단을 길게 누르세요",
       input: { value: "", maxLength: 10, placeholder: "예: 삼성카드, 계좌이체" },
       validate: v => { const t = v.trim(); return !t ? "이름을 입력해 주세요" : PAYS.includes(t) ? "이미 있어요" : ""; }
     });
