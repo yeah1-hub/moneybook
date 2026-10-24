@@ -1288,7 +1288,6 @@
   document.getElementById("payAddBtn").onclick = async () => {
     const v = await uiDialog({
       title: "결제수단 추가",
-      message: "지울 때는 결제수단을 길게 누르세요",
       input: { value: "", maxLength: 10, placeholder: "예: 삼성카드, 계좌이체" },
       validate: v => { const t = v.trim(); return !t ? "이름을 입력해 주세요" : PAYS.includes(t) ? "이미 있어요" : ""; }
     });
