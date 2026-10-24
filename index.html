@@ -82,7 +82,7 @@
   .day.sat .num { color: var(--sat); }
   .day.other { opacity: 0.3; }
   .day.today .num { background: var(--today); color: #fff; font-weight: 600; }
-  .day .amt { font-size: 10px; font-weight: 300; line-height: 12px; white-space: nowrap; overflow: hidden; }
+  .day .amt { font-size: 10px; font-weight: 300; line-height: 12px; white-space: nowrap; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .day .num + .amt { margin-top: 1px; }
   .day .amt.in { color: var(--income); }
   .day .amt.out { color: var(--expense); }
@@ -649,6 +649,11 @@
     const h = document.getElementById("panelCur").offsetHeight;
     document.getElementById("viewport").style.height = h ? h + "px" : "";
   }
+  // 글자가 늦게 그려지거나 칸이 3줄로 커져도 달력이 잘리지 않게 높이를 계속 맞춤
+  if (window.ResizeObserver) new ResizeObserver(() => {
+    const h = document.getElementById("panelCur").offsetHeight;
+    if (h) document.getElementById("viewport").style.height = h + "px";
+  }).observe(document.getElementById("panelCur"));
 
   // 앱을 며칠 켜둬도 '오늘'이 옛날 날짜로 남지 않게, 다시 열 때마다 오늘 날짜 갱신
   function refreshToday() {
