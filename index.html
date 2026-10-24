@@ -172,13 +172,13 @@
   .dim { position: fixed; inset: 0; background: rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 30; }
   .dim.show { opacity: 1; pointer-events: auto; }
   .sheet {
-    position: fixed; left: 0; right: 0; bottom: 0; max-width: 480px; margin: 0 auto;
-    background: var(--card); border-radius: 22px 22px 0 0;
-    padding: 10px 16px calc(env(safe-area-inset-bottom) + 14px);
+    position: fixed; left: 0; right: 0; top: 0; bottom: 0; max-width: 480px; margin: 0 auto;
+    background: var(--card); border-radius: 0;
+    padding: calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 14px);
     transform: translateY(105%); transition: transform 0.28s ease-out; z-index: 40;
-    max-height: 92vh; max-height: 92dvh; display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh; display: flex; flex-direction: column;
   }
-  .sheet .bottom { margin-top: 4px; }
+  .sheet .bottom { margin-top: auto; padding-top: 4px; }
   .sheet.show { transform: translateY(0); }
   .grabber { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 12px; }
 
@@ -247,8 +247,8 @@
 
   /* 전체 카테고리 창 */
   .cat-modal {
-    position: absolute; inset: 0; background: var(--card); border-radius: 22px 22px 0 0;
-    padding: 18px 16px calc(env(safe-area-inset-bottom) + 14px);
+    position: absolute; inset: 0; background: var(--card); border-radius: 0;
+    padding: calc(env(safe-area-inset-top) + 18px) 16px calc(env(safe-area-inset-bottom) + 14px);
     display: flex; flex-direction: column; opacity: 0; pointer-events: none; transform: translateY(12px);
     transition: opacity 0.2s, transform 0.2s; z-index: 5;
   }
