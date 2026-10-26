@@ -112,7 +112,7 @@
   .records { padding-bottom: 60px; }
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; width: 100%;
-    display: grid; grid-template-columns: repeat(4, 1fr);
+    display: grid; grid-template-columns: repeat(5, 1fr);
     padding-left: max(0px, calc((100% - 480px) / 2)); padding-right: max(0px, calc((100% - 480px) / 2));
     background: rgba(255,255,255,0.94); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
     border-top: 1px solid var(--line); padding-top: 10px; padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
@@ -315,6 +315,27 @@
   .sheet.editing .delete { display: block; }
   .record { cursor: pointer; }
   .record:active { background: var(--bg); }
+  /* 주식 */
+  .asset-hero .t3 { font-size: 14px; margin-top: 8px; font-weight: 600; }
+  .asset-hero .t3 .base { font-weight: 400; opacity: 0.7; margin-left: 6px; }
+  .up { color: var(--expense); } .down { color: var(--income); } .flat { color: var(--sub); }
+  .asset-hero .up { color: #ff8a8f; } .asset-hero .down { color: #8fb6ff; } .asset-hero .flat { color: rgba(255,255,255,0.7); }
+  .stk-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; border-top: 1px solid var(--line); cursor: pointer; gap: 12px; }
+  .stk-row:first-child { border-top: none; }
+  .stk-row:active { background: var(--bg); }
+  .stk-row .name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stk-row .sub { font-size: 12px; color: var(--sub); margin-top: 3px; }
+  .stk-row .right { text-align: right; flex: none; }
+  .stk-row .money { font-size: 16px; white-space: nowrap; }
+  .stk-row .pl { font-size: 12px; margin-top: 3px; white-space: nowrap; }
+  .stk-add { padding: 15px 16px; text-align: center; color: var(--sub); font-size: 15px; cursor: pointer; border-top: 1px solid var(--line); }
+  .stk-add:first-child { border-top: none; }
+  .stk-field { margin-top: 12px; }
+  .stk-field label { display: block; font-size: 12px; color: var(--sub); margin: 0 2px 4px; font-weight: 600; }
+  .stk-field input { margin-top: 0 !important; }
+  .menu-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .menu-list button { height: 48px; border: none; border-radius: 12px; background: var(--bg); font-size: 15px; font-weight: 600; font-family: inherit; color: var(--text); cursor: pointer; }
+  .menu-list button.danger { color: var(--expense); }
 </style>
 </head>
 <body>
@@ -371,11 +392,29 @@
   <div class="list-card" style="margin-top:0" id="savingList"></div>
   <div class="bank-tip">항목을 누르면 시작 금액을 넣을 수 있고, 꾹 누르면 순서를 바꿀 수 있어요</div>
 
+  <div id="bankStockWrap" hidden>
+    <div class="section-title"><span>주식</span></div>
+    <div class="list-card" style="margin-top:0" id="bankStock"></div>
+  </div>
+
   <div id="debtWrap" hidden>
     <div class="section-title"><span>갚을 할부</span><span id="debtTotal" style="color:var(--expense)"></span></div>
     <div class="list-card" style="margin-top:0" id="debtList"></div>
     <div class="bank-tip">캘린더에 기록한 카드 할부 중 아직 청구되지 않은 금액이에요</div>
   </div>
+</section>
+
+<!-- 주식 -->
+<section class="page" id="page-stock">
+  <div class="page-title">주식</div>
+  <div class="asset-hero">
+    <div class="t1">평가금액</div>
+    <div class="t2" id="stkTotal">0원</div>
+    <div class="t3" id="stkPL"></div>
+  </div>
+  <div class="section-title"><span>보유 종목</span><span id="stkPrincipal"></span></div>
+  <div class="list-card" style="margin-top:0" id="stkList"></div>
+  <div class="bank-tip">종목을 누르면 평가금액 수정·더 사기·팔기를 할 수 있어요.<br>현금에서 넣은 돈은 현금 잔액에서 빠지고, 총 자산엔 평가금액으로 들어가요</div>
 </section>
 
 <!-- 더보기 -->
@@ -418,6 +457,34 @@
   </div>
 </div>
 
+<div class="dlg-dim" id="stkDim">
+  <div class="dlg">
+    <h4 id="stkTitle">종목 추가</h4>
+    <div class="stk-field"><label>종목 이름</label><input id="stkName" maxlength="20" placeholder="예: 삼성전자"></div>
+    <div class="stk-field"><label>넣은 돈 (원금)</label><input id="stkPrin" inputmode="numeric" maxlength="15" placeholder="0"></div>
+    <div class="stk-field"><label>지금 평가금액 <span style="font-weight:400">· 비우면 원금과 같게</span></label><input id="stkVal" inputmode="numeric" maxlength="15" placeholder="0"></div>
+    <div class="dlg-choice" id="stkFrom"><button data-v="cash" class="on">현금에서 넣기</button><button data-v="old">원래 있던 주식</button></div>
+    <p id="stkFromHint" style="font-size:12px;margin-top:8px"></p>
+    <div class="err" id="stkErr"></div>
+    <div class="btns"><button class="cancel" id="stkCancel">취소</button><button class="ok" id="stkOk">추가</button></div>
+  </div>
+</div>
+
+<div class="dlg-dim" id="stkMenuDim">
+  <div class="dlg">
+    <h4 id="stkMenuTitle"></h4>
+    <p id="stkMenuMsg" style="white-space:pre-line"></p>
+    <div class="menu-list" id="stkMenu">
+      <button data-m="value">평가금액 수정</button>
+      <button data-m="buy">더 사기</button>
+      <button data-m="sell">팔기</button>
+      <button data-m="rename">이름 바꾸기</button>
+      <button data-m="delete" class="danger">지우기</button>
+    </div>
+    <div class="btns" style="grid-template-columns:1fr"><button class="cancel" id="stkMenuClose">닫기</button></div>
+  </div>
+</div>
+
 <nav class="tabbar">
   <button class="active" data-page="home" aria-label="홈">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
@@ -427,6 +494,9 @@
   </button>
   <button data-page="bank" aria-label="저금통">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9.5c1 .6 1.7 1.7 2 2.5h1v4h-1.5a7 7 0 0 1-2.5 2.6V21h-3v-1.5h-4V21H8v-2.4A7 7 0 0 1 12 6h3l3-2v4.2"/><circle cx="16" cy="11" r="0.6" fill="currentColor"/></svg>
+  </button>
+  <button data-page="stock" aria-label="주식">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5.5-5.5 4 4L21 7"/><path d="M15 7h6v6"/></svg>
   </button>
   <button data-page="more" aria-label="더보기">
     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
@@ -508,6 +578,13 @@
   const saveCredit = () => { try { localStorage.setItem("mb_payCredit", JSON.stringify(CREDIT_PAYS)); } catch (e) {} };
   const isCredit = name => CREDIT_PAYS.includes(name);
   const payOf = t => t.pay || (t.inst ? "신용카드" : "현금");
+
+  // 주식: 보유 종목 { id, name, principal(원금), value(평가금액) }
+  //       현금 이동 기록 { date, amount(+ 현금→주식 / - 주식→현금), id }
+  let stocks = [], stockLog = [];
+  try { const v = JSON.parse(localStorage.getItem("mb_stocks")); if (Array.isArray(v)) stocks = v; } catch (e) {}
+  try { const v = JSON.parse(localStorage.getItem("mb_stockLog")); if (Array.isArray(v)) stockLog = v; } catch (e) {}
+  const saveStocks = () => { try { localStorage.setItem("mb_stocks", JSON.stringify(stocks)); localStorage.setItem("mb_stockLog", JSON.stringify(stockLog)); } catch (e) {} };
 
   let today = new Date();
   let viewYear = today.getFullYear();
@@ -604,7 +681,9 @@
     document.getElementById("sumExpense").textContent = won(expense);
     document.getElementById("sumSaving").textContent = won(savingIn);
     const cashExp = list.reduce((a, t) => a + cashOut(t), 0);
-    document.getElementById("sumCash").textContent = won(income - cashExp - savingNet);
+    const prefix = `${viewYear}-${pad(viewMonth + 1)}-`;
+    const stockNet = stockLog.filter(l => l.date.startsWith(prefix)).reduce((a, l) => a + l.amount, 0);  // 주식에 넣은 돈은 현금에서 빠짐
+    document.getElementById("sumCash").textContent = won(income - cashExp - savingNet - stockNet);
     document.getElementById("monthTitle").innerHTML = `<span class="year">${viewYear}년</span>${viewMonth + 1}월`;
   }
 
@@ -716,14 +795,14 @@
   window.addEventListener("focus", refreshToday);
   window.addEventListener("pageshow", refreshToday);
 
-  function render() { renderSummary(); renderCalendar(); renderRecords(); renderStats(); renderBank(); renderDataList(); renderCardList(); }
+  function render() { renderSummary(); renderCalendar(); renderRecords(); renderStats(); renderBank(); renderStocks(); renderDataList(); renderCardList(); }
 
   // ===== 하단 탭 =====
   document.querySelectorAll(".tabbar button").forEach(btn => btn.onclick = () => {
     const page = btn.dataset.page;
     document.querySelectorAll(".tabbar button").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "page-" + page));
-    document.body.classList.toggle("no-fab", page === "bank" || page === "more");
+    document.body.classList.toggle("no-fab", page !== "home" && page !== "stats");
     window.scrollTo(0, 0);
     render();
   });
@@ -825,7 +904,8 @@
     const todayKey = keyOf(today.getFullYear(), today.getMonth(), today.getDate());
     const past = transactions.filter(t => t.date <= todayKey);
     const sumAll = type => past.filter(t => t.type === type).reduce((a, t) => a + t.amount, 0);
-    const cash = start.cash + sumAll("income") - past.reduce((a, t) => a + cashOut(t), 0) - past.reduce((a, t) => a + svCash(t), 0);
+    const stockOut = stockLog.filter(l => l.date <= todayKey).reduce((a, l) => a + l.amount, 0);
+    const cash = start.cash + sumAll("income") - past.reduce((a, t) => a + cashOut(t), 0) - past.reduce((a, t) => a + svCash(t), 0) - stockOut;
     const instLeft = transactions.filter(t => t.inst && t.date > todayKey).reduce((a, t) => a + t.amount, 0);
 
     // 저금 카테고리별 (카테고리 목록 + 기록에만 있는 이름까지)
@@ -836,7 +916,14 @@
     const savingTotal = savingRows.reduce((a, r) => a + r.total, 0);
 
     bankNow = { cash, saving: Object.fromEntries(savingRows.map(r => [r.name, r.total])) };
-    document.getElementById("assetTotal").textContent = won(cash + savingTotal);
+    const stockValue = stocks.reduce((a, s) => a + s.value, 0);
+    document.getElementById("assetTotal").textContent = won(cash + savingTotal + stockValue);
+    document.getElementById("bankStockWrap").hidden = !stocks.length;
+    document.getElementById("bankStock").innerHTML = stocks.length ? `
+      <div class="bank-row" id="bankStockRow">
+        <div><div class="name">주식 평가금액</div><div class="sub">${stocks.length}종목</div></div>
+        <div class="money">${won(stockValue)}</div>
+      </div>` : "";
     document.getElementById("savingTotal").textContent = won(savingTotal);
 
     document.getElementById("cashList").innerHTML = `
@@ -1609,7 +1696,7 @@
     const now = new Date();
     const payload = {
       app: "moneybook", version: 3, exportedAt: now.toISOString(),
-      transactions, categories: CATEGORIES, catColors, start, settings, pays: PAYS, creditPays: CREDIT_PAYS
+      transactions, categories: CATEGORIES, catColors, start, settings, pays: PAYS, creditPays: CREDIT_PAYS, stocks, stockLog
     };
     const name = `가계부-백업-${keyOf(now.getFullYear(), now.getMonth(), now.getDate())}.json`;
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -1658,6 +1745,9 @@
     catColors = Object.assign({ expense: {}, income: {}, saving: {} }, d.catColors || {});
     start = Object.assign({ cash: 0, saving: {} }, d.start || {});
     settings = Object.assign({ billDay: null }, d.settings || {});
+    stocks = Array.isArray(d.stocks) ? d.stocks : [];
+    stockLog = Array.isArray(d.stockLog) ? d.stockLog : [];
+    saveStocks();
     saveAll();
     render();
     await uiDialog({ title: "복원 완료", message: `기록 ${transactions.length}건을 되살렸어요.`, noCancel: true });
@@ -1712,6 +1802,133 @@
     else if (row.dataset.act === "restore") restoreInput.click();
     else if (row.dataset.act === "import") doImportOld();
   };
+
+  // ===== 주식 =====
+  const todayStr = () => keyOf(today.getFullYear(), today.getMonth(), today.getDate());
+  const toNum = v => Number(String(v).replace(/[^\d]/g, "")) || 0;
+  function plText(value, principal) {
+    const d = value - principal;
+    const cls = d > 0 ? "up" : d < 0 ? "down" : "flat";
+    const pct = principal ? (d / principal * 100) : 0;
+    const sign = d > 0 ? "+" : d < 0 ? "-" : "";
+    return { cls, text: `${sign}${Math.abs(d).toLocaleString("ko-KR")}원 (${sign}${Math.abs(pct).toFixed(2)}%)` };
+  }
+  function renderStocks() {
+    const total = stocks.reduce((a, s) => a + s.value, 0);
+    const prin = stocks.reduce((a, s) => a + s.principal, 0);
+    document.getElementById("stkTotal").textContent = won(total);
+    const pl = plText(total, prin);
+    document.getElementById("stkPL").innerHTML = stocks.length
+      ? `<span class="${pl.cls}">${pl.text}</span><span class="base">원금 ${won(prin)}</span>` : "";
+    document.getElementById("stkPrincipal").textContent = stocks.length ? `${stocks.length}종목` : "";
+    document.getElementById("stkList").innerHTML = stocks.map(s => {
+      const p = plText(s.value, s.principal);
+      return `<div class="stk-row" data-stk="${s.id}">
+        <div style="min-width:0"><div class="name">${escHtml(s.name)}</div><div class="sub">원금 ${won(s.principal)}</div></div>
+        <div class="right"><div class="money">${won(s.value)}</div><div class="pl ${p.cls}">${p.text}</div></div>
+      </div>`;
+    }).join("") + `<div class="stk-add" id="stkAddBtn">+ 종목 추가</div>`;
+  }
+
+  // 종목 추가 창
+  let stkFrom = "cash";
+  const fromBox = document.getElementById("stkFrom");
+  const drawFrom = () => {
+    fromBox.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === stkFrom));
+    document.getElementById("stkFromHint").textContent = stkFrom === "cash"
+      ? "넣은 돈만큼 현금 잔액에서 빠져요" : "현금 잔액은 그대로, 총 자산에만 더해져요";
+  };
+  fromBox.onclick = e => { const b = e.target.closest("[data-v]"); if (b) { stkFrom = b.dataset.v; drawFrom(); } };
+  ["stkPrin", "stkVal"].forEach(id => {
+    const el = document.getElementById(id);
+    el.oninput = () => { const n = toNum(el.value); el.value = n ? n.toLocaleString("ko-KR") : ""; };
+  });
+  function openAddStock() {
+    const dim = document.getElementById("stkDim");
+    const name = document.getElementById("stkName"), prin = document.getElementById("stkPrin"), val = document.getElementById("stkVal");
+    const err = document.getElementById("stkErr");
+    name.value = prin.value = val.value = ""; err.textContent = "";
+    stkFrom = "cash"; drawFrom();
+    dim.classList.add("show");
+    name.focus();
+    const close = () => dim.classList.remove("show");
+    document.getElementById("stkCancel").onclick = close;
+    document.getElementById("stkOk").onclick = () => {
+      const n = name.value.trim(), p = toNum(prin.value), v = val.value.trim() ? toNum(val.value) : p;
+      if (!n) { err.textContent = "종목 이름을 입력해 주세요"; return; }
+      if (!p) { err.textContent = "넣은 돈을 입력해 주세요"; return; }
+      const id = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      stocks.push({ id, name: n, principal: p, value: v });
+      if (stkFrom === "cash") stockLog.push({ date: todayStr(), amount: p, id });
+      saveStocks(); close(); render();
+    };
+  }
+
+  // 종목 메뉴
+  let menuStock = null;
+  const menuDim = document.getElementById("stkMenuDim");
+  function openStockMenu(s) {
+    menuStock = s;
+    const p = plText(s.value, s.principal);
+    document.getElementById("stkMenuTitle").textContent = s.name;
+    document.getElementById("stkMenuMsg").textContent = `평가금액 ${won(s.value)}\n원금 ${won(s.principal)} · ${p.text}`;
+    menuDim.classList.add("show");
+  }
+  document.getElementById("stkMenuClose").onclick = () => menuDim.classList.remove("show");
+  const amountInput = (value = "") => ({ value, numeric: true, placeholder: "0", maxLength: 15 });
+  const amountOk = v => /^[\d,\s]*$/.test(v) && toNum(v) > 0 ? "" : "금액을 숫자로 입력해 주세요";
+
+  document.getElementById("stkMenu").onclick = async e => {
+    const b = e.target.closest("[data-m]");
+    const s = menuStock;
+    if (!b || !s) return;
+    menuDim.classList.remove("show");
+    const m = b.dataset.m;
+    if (m === "value") {
+      const v = await uiDialog({ title: `${s.name} 평가금액`, message: "증권 앱에 보이는 지금 평가금액을 넣어주세요", input: amountInput(String(s.value)),
+        validate: v => /^[\d,\s]*$/.test(v) ? "" : "숫자만 입력해 주세요" });
+      if (v === null) return;
+      s.value = toNum(v);
+    } else if (m === "buy") {
+      const r = await uiDialog({ title: `${s.name} 더 사기`, message: "더 넣은 금액", input: amountInput(), validate: amountOk,
+        choice: { options: ["현금에서 넣기", "원래 있던 돈"], value: "현금에서 넣기" }, okText: "사기" });
+      if (r === null) return;
+      const a = toNum(r.text);
+      s.principal += a; s.value += a;
+      if (r.choice === "현금에서 넣기") stockLog.push({ date: todayStr(), amount: a, id: s.id });
+    } else if (m === "sell") {
+      const v = await uiDialog({ title: `${s.name} 팔기`, message: `판 금액(받은 돈)을 넣어주세요.\n현금 잔액으로 들어가요. 전부 팔려면 ${s.value.toLocaleString("ko-KR")}`,
+        input: amountInput(), validate: amountOk, okText: "팔기" });
+      if (v === null) return;
+      const a = toNum(v);
+      stockLog.push({ date: todayStr(), amount: -a, id: s.id });
+      if (a >= s.value) {
+        stocks = stocks.filter(x => x !== s);   // 전부 팔면 목록에서 빠짐 (현금 기록은 남음)
+      } else {
+        s.principal = Math.round(s.principal * (1 - a / s.value));
+        s.value -= a;
+      }
+    } else if (m === "rename") {
+      const v = await uiDialog({ title: "이름 바꾸기", input: { value: s.name, maxLength: 20 }, validate: v => v.trim() ? "" : "이름을 입력해 주세요" });
+      if (v === null) return;
+      s.name = v.trim();
+    } else if (m === "delete") {
+      const yes = await uiDialog({ title: `${s.name} 지우기`, message: "잘못 넣었을 때 쓰는 거예요. 이 종목 때문에 현금에서 빠졌던 돈도 되돌아가요.\n실제로 판 거라면 '팔기'를 써주세요.", okText: "지우기", danger: true });
+      if (!yes) return;
+      stocks = stocks.filter(x => x !== s);
+      stockLog = stockLog.filter(l => l.id !== s.id);
+    }
+    saveStocks(); render();
+  };
+
+  document.getElementById("stkList").onclick = e => {
+    if (e.target.closest("#stkAddBtn")) return openAddStock();
+    const row = e.target.closest("[data-stk]");
+    const s = row && stocks.find(x => x.id === row.dataset.stk);
+    if (s) openStockMenu(s);
+  };
+  // 저금통의 주식 줄 누르면 주식 탭으로
+  document.getElementById("bankStock").onclick = () => document.querySelector('.tabbar [data-page="stock"]').click();
 
   // 브라우저에 '이 사이트 기록은 지우지 말아줘' 요청
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
