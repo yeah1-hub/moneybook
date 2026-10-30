@@ -112,7 +112,7 @@
   .records { padding-bottom: 60px; }
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; width: 100%;
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-template-columns: repeat(4, 1fr);
     padding-left: max(0px, calc((100% - 480px) / 2)); padding-right: max(0px, calc((100% - 480px) / 2));
     background: rgba(255,255,255,0.94); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
     border-top: 1px solid var(--line); padding-top: 10px; padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
@@ -315,35 +315,6 @@
   .sheet.editing .delete { display: block; }
   .record { cursor: pointer; }
   .record:active { background: var(--bg); }
-  /* 주식 */
-  .asset-hero .t3 { font-size: 14px; margin-top: 8px; font-weight: 600; }
-  .asset-hero .t3 .base { font-weight: 400; opacity: 0.7; margin-left: 6px; }
-  .up { color: var(--expense); } .down { color: var(--income); } .flat { color: var(--sub); }
-  .asset-hero .up { color: #ff8a8f; } .asset-hero .down { color: #8fb6ff; } .asset-hero .flat { color: rgba(255,255,255,0.7); }
-  .stk-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; border-top: 1px solid var(--line); cursor: pointer; gap: 12px; }
-  .stk-row:first-child { border-top: none; }
-  .stk-row:active { background: var(--bg); }
-  .stk-row .name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .stk-row .sub { font-size: 12px; color: var(--sub); margin-top: 3px; }
-  .stk-row .right { text-align: right; flex: none; }
-  .stk-row .money { font-size: 16px; white-space: nowrap; }
-  .stk-row .pl { font-size: 12px; margin-top: 3px; white-space: nowrap; }
-  .stk-add { padding: 15px 16px; text-align: center; color: var(--sub); font-size: 15px; cursor: pointer; border-top: 1px solid var(--line); }
-  .stk-add:first-child { border-top: none; }
-  .stk-field { margin-top: 12px; }
-  .stk-field label { display: block; font-size: 12px; color: var(--sub); margin: 0 2px 4px; font-weight: 600; }
-  .stk-field input { margin-top: 0 !important; }
-  .sugg { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin-top: 6px; max-height: 210px; overflow-y: auto; display: none; }
-  .sugg.show { display: block; }
-  .sugg button { display: flex; justify-content: space-between; width: 100%; border: none; background: none; padding: 11px 12px; font-size: 14px; font-family: inherit; color: var(--text); text-align: left; border-top: 1px solid var(--line); cursor: pointer; gap: 8px; }
-  .sugg button:first-child { border-top: none; }
-  .sugg button span:last-child { color: var(--sub); font-size: 12px; flex: none; }
-  .picked { font-size: 12px; color: var(--saving); margin: 6px 2px 0; font-weight: 600; }
-  .picked:empty { display: none; }
-  .stk-row .auto { font-size: 10px; font-weight: 700; color: var(--saving); background: #e3f5ec; padding: 2px 5px; border-radius: 6px; margin-left: 5px; vertical-align: 2px; }
-  .menu-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
-  .menu-list button { height: 48px; border: none; border-radius: 12px; background: var(--bg); font-size: 15px; font-weight: 600; font-family: inherit; color: var(--text); cursor: pointer; }
-  .menu-list button.danger { color: var(--expense); }
 </style>
 </head>
 <body>
@@ -400,30 +371,11 @@
   <div class="list-card" style="margin-top:0" id="savingList"></div>
   <div class="bank-tip">항목을 누르면 시작 금액을 넣을 수 있고, 꾹 누르면 순서를 바꿀 수 있어요</div>
 
-  <div id="bankStockWrap" hidden>
-    <div class="section-title"><span>주식</span></div>
-    <div class="list-card" style="margin-top:0" id="bankStock"></div>
-  </div>
-
   <div id="debtWrap" hidden>
     <div class="section-title"><span>갚을 할부</span><span id="debtTotal" style="color:var(--expense)"></span></div>
     <div class="list-card" style="margin-top:0" id="debtList"></div>
     <div class="bank-tip">캘린더에 기록한 카드 할부 중 아직 청구되지 않은 금액이에요</div>
   </div>
-</section>
-
-<!-- 주식 -->
-<section class="page" id="page-stock">
-  <div class="page-title">주식</div>
-  <div class="asset-hero">
-    <div class="t1">평가금액</div>
-    <div class="t2" id="stkTotal">0원</div>
-    <div class="t3" id="stkPL"></div>
-  </div>
-  <div class="section-title"><span>보유 종목</span><span id="stkPrincipal"></span></div>
-  <div class="list-card" style="margin-top:0" id="stkList"></div>
-  <div class="bank-tip" id="stkUpdated"></div>
-  <div class="bank-tip">종목 이름을 목록에서 고르고 수량을 넣으면 평가금액이 시세로 자동으로 바뀌어요.<br>현금에서 넣은 돈은 현금 잔액에서 빠지고, 총 자산엔 평가금액으로 들어가요</div>
 </section>
 
 <!-- 더보기 -->
@@ -466,40 +418,6 @@
   </div>
 </div>
 
-<div class="dlg-dim" id="stkDim">
-  <div class="dlg">
-    <h4 id="stkTitle">종목 추가</h4>
-    <div class="stk-field" id="fName"><label>종목 이름</label><input id="stkName" maxlength="20" placeholder="예: 삼성전자" autocomplete="off">
-      <div class="sugg" id="stkSugg"></div>
-      <div class="picked" id="stkPicked"></div></div>
-    <div class="stk-field" id="fQty"><label id="lQty">수량 (주)</label><input id="stkQty" inputmode="decimal" maxlength="12" placeholder="0"></div>
-    <div class="stk-field" id="fPrin"><label id="lPrin">넣은 돈 (원금)</label><input id="stkPrin" inputmode="numeric" maxlength="15" placeholder="0"></div>
-    <div class="stk-field" id="fVal"><label>지금 평가금액 <span style="font-weight:400">· 비우면 원금과 같게</span></label><input id="stkVal" inputmode="numeric" maxlength="15" placeholder="0"></div>
-    <div id="fFrom">
-      <div class="dlg-choice" id="stkFrom"><button data-v="cash" class="on">현금에서 넣기</button><button data-v="old">원래 있던 돈</button></div>
-      <p id="stkFromHint" style="font-size:12px;margin-top:8px"></p>
-    </div>
-    <div class="err" id="stkErr"></div>
-    <div class="btns"><button class="cancel" id="stkCancel">취소</button><button class="ok" id="stkOk">추가</button></div>
-  </div>
-</div>
-
-<div class="dlg-dim" id="stkMenuDim">
-  <div class="dlg">
-    <h4 id="stkMenuTitle"></h4>
-    <p id="stkMenuMsg" style="white-space:pre-line"></p>
-    <div class="menu-list" id="stkMenu">
-      <button data-m="value">평가금액 수정</button>
-      <button data-m="qty">수량 수정</button>
-      <button data-m="buy">더 사기</button>
-      <button data-m="sell">팔기</button>
-      <button data-m="rename">이름 바꾸기</button>
-      <button data-m="delete" class="danger">지우기</button>
-    </div>
-    <div class="btns" style="grid-template-columns:1fr"><button class="cancel" id="stkMenuClose">닫기</button></div>
-  </div>
-</div>
-
 <nav class="tabbar">
   <button class="active" data-page="home" aria-label="홈">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
@@ -509,9 +427,6 @@
   </button>
   <button data-page="bank" aria-label="저금통">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9.5c1 .6 1.7 1.7 2 2.5h1v4h-1.5a7 7 0 0 1-2.5 2.6V21h-3v-1.5h-4V21H8v-2.4A7 7 0 0 1 12 6h3l3-2v4.2"/><circle cx="16" cy="11" r="0.6" fill="currentColor"/></svg>
-  </button>
-  <button data-page="stock" aria-label="주식">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5.5-5.5 4 4L21 7"/><path d="M15 7h6v6"/></svg>
   </button>
   <button data-page="more" aria-label="더보기">
     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
@@ -593,13 +508,6 @@
   const saveCredit = () => { try { localStorage.setItem("mb_payCredit", JSON.stringify(CREDIT_PAYS)); } catch (e) {} };
   const isCredit = name => CREDIT_PAYS.includes(name);
   const payOf = t => t.pay || (t.inst ? "신용카드" : "현금");
-
-  // 주식: 보유 종목 { id, name, principal(원금), value(평가금액) }
-  //       현금 이동 기록 { date, amount(+ 현금→주식 / - 주식→현금), id }
-  let stocks = [], stockLog = [];
-  try { const v = JSON.parse(localStorage.getItem("mb_stocks")); if (Array.isArray(v)) stocks = v; } catch (e) {}
-  try { const v = JSON.parse(localStorage.getItem("mb_stockLog")); if (Array.isArray(v)) stockLog = v; } catch (e) {}
-  const saveStocks = () => { try { localStorage.setItem("mb_stocks", JSON.stringify(stocks)); localStorage.setItem("mb_stockLog", JSON.stringify(stockLog)); } catch (e) {} };
 
   let today = new Date();
   let viewYear = today.getFullYear();
@@ -696,9 +604,7 @@
     document.getElementById("sumExpense").textContent = won(expense);
     document.getElementById("sumSaving").textContent = won(savingIn);
     const cashExp = list.reduce((a, t) => a + cashOut(t), 0);
-    const prefix = `${viewYear}-${pad(viewMonth + 1)}-`;
-    const stockNet = stockLog.filter(l => l.date.startsWith(prefix)).reduce((a, l) => a + l.amount, 0);  // 주식에 넣은 돈은 현금에서 빠짐
-    document.getElementById("sumCash").textContent = won(income - cashExp - savingNet - stockNet);
+    document.getElementById("sumCash").textContent = won(income - cashExp - savingNet);
     document.getElementById("monthTitle").innerHTML = `<span class="year">${viewYear}년</span>${viewMonth + 1}월`;
   }
 
@@ -810,14 +716,14 @@
   window.addEventListener("focus", refreshToday);
   window.addEventListener("pageshow", refreshToday);
 
-  function render() { renderSummary(); renderCalendar(); renderRecords(); renderStats(); renderBank(); renderStocks(); renderDataList(); renderCardList(); }
+  function render() { renderSummary(); renderCalendar(); renderRecords(); renderStats(); renderBank(); renderDataList(); renderCardList(); }
 
   // ===== 하단 탭 =====
   document.querySelectorAll(".tabbar button").forEach(btn => btn.onclick = () => {
     const page = btn.dataset.page;
     document.querySelectorAll(".tabbar button").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "page-" + page));
-    document.body.classList.toggle("no-fab", page !== "home" && page !== "stats");
+    document.body.classList.toggle("no-fab", page === "bank" || page === "more");
     window.scrollTo(0, 0);
     render();
   });
@@ -919,8 +825,7 @@
     const todayKey = keyOf(today.getFullYear(), today.getMonth(), today.getDate());
     const past = transactions.filter(t => t.date <= todayKey);
     const sumAll = type => past.filter(t => t.type === type).reduce((a, t) => a + t.amount, 0);
-    const stockOut = stockLog.filter(l => l.date <= todayKey).reduce((a, l) => a + l.amount, 0);
-    const cash = start.cash + sumAll("income") - past.reduce((a, t) => a + cashOut(t), 0) - past.reduce((a, t) => a + svCash(t), 0) - stockOut;
+    const cash = start.cash + sumAll("income") - past.reduce((a, t) => a + cashOut(t), 0) - past.reduce((a, t) => a + svCash(t), 0);
     const instLeft = transactions.filter(t => t.inst && t.date > todayKey).reduce((a, t) => a + t.amount, 0);
 
     // 저금 카테고리별 (카테고리 목록 + 기록에만 있는 이름까지)
@@ -931,14 +836,7 @@
     const savingTotal = savingRows.reduce((a, r) => a + r.total, 0);
 
     bankNow = { cash, saving: Object.fromEntries(savingRows.map(r => [r.name, r.total])) };
-    const stockValue = stocks.reduce((a, s) => a + s.value, 0);
-    document.getElementById("assetTotal").textContent = won(cash + savingTotal + stockValue);
-    document.getElementById("bankStockWrap").hidden = !stocks.length;
-    document.getElementById("bankStock").innerHTML = stocks.length ? `
-      <div class="bank-row" id="bankStockRow">
-        <div><div class="name">주식 평가금액</div><div class="sub">${stocks.length}종목</div></div>
-        <div class="money">${won(stockValue)}</div>
-      </div>` : "";
+    document.getElementById("assetTotal").textContent = won(cash + savingTotal);
     document.getElementById("savingTotal").textContent = won(savingTotal);
 
     document.getElementById("cashList").innerHTML = `
@@ -1711,7 +1609,7 @@
     const now = new Date();
     const payload = {
       app: "moneybook", version: 3, exportedAt: now.toISOString(),
-      transactions, categories: CATEGORIES, catColors, start, settings, pays: PAYS, creditPays: CREDIT_PAYS, stocks, stockLog
+      transactions, categories: CATEGORIES, catColors, start, settings, pays: PAYS, creditPays: CREDIT_PAYS
     };
     const name = `가계부-백업-${keyOf(now.getFullYear(), now.getMonth(), now.getDate())}.json`;
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -1760,9 +1658,6 @@
     catColors = Object.assign({ expense: {}, income: {}, saving: {} }, d.catColors || {});
     start = Object.assign({ cash: 0, saving: {} }, d.start || {});
     settings = Object.assign({ billDay: null }, d.settings || {});
-    stocks = Array.isArray(d.stocks) ? d.stocks : [];
-    stockLog = Array.isArray(d.stockLog) ? d.stockLog : [];
-    saveStocks();
     saveAll();
     render();
     await uiDialog({ title: "복원 완료", message: `기록 ${transactions.length}건을 되살렸어요.`, noCancel: true });
@@ -1818,234 +1713,10 @@
     else if (row.dataset.act === "import") doImportOld();
   };
 
-  // ===== 주식 =====
-  const todayStr = () => keyOf(today.getFullYear(), today.getMonth(), today.getDate());
-  const toNum = v => Number(String(v).replace(/[^\d]/g, "")) || 0;
-  const toQty = v => Number(String(v).replace(/[^\d.]/g, "")) || 0;
-  const fmtQty = q => q.toLocaleString("ko-KR", { maximumFractionDigits: 6 });
-
-  // 시세: GitHub에서 20분마다 만들어 두는 prices.json { updated, usdkrw, items: { 코드: [이름, 가격, 통화] } }
-  let prices = null;
-  try { prices = JSON.parse(localStorage.getItem("mb_prices") || "null"); } catch (e) {}
-  const priceOf = code => {
-    const it = prices && prices.items && prices.items[code];
-    if (!it) return null;
-    if (it[2] === "USD") return prices.usdkrw ? it[1] * prices.usdkrw : null;
-    return it[1];
-  };
-  // 자동 종목은 수량 × 시세로 평가금액을 다시 계산
-  function applyPrices() {
-    let changed = false;
-    stocks.forEach(s => {
-      if (!s.code || !s.qty) return;
-      const pr = priceOf(s.code);
-      if (pr == null) return;
-      const v = Math.round(pr * s.qty);
-      if (v !== s.value) { s.value = v; changed = true; }
-    });
-    if (changed) saveStocks();
-  }
-  let lastPriceFetch = 0;
-  async function loadPrices() {
-    if (Date.now() - lastPriceFetch < 60000) return;
-    lastPriceFetch = Date.now();
-    try {
-      const r = await fetch("prices.json?t=" + Date.now(), { cache: "no-store" });
-      if (!r.ok) return;
-      const d = await r.json();
-      if (!d || !d.items) return;
-      prices = d;
-      try { localStorage.setItem("mb_prices", JSON.stringify(d)); } catch (e) {}
-      applyPrices(); render();
-    } catch (e) {}
-  }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) loadPrices(); });
-
-  function plText(value, principal) {
-    const d = value - principal;
-    const cls = d > 0 ? "up" : d < 0 ? "down" : "flat";
-    const pct = principal ? (d / principal * 100) : 0;
-    const sign = d > 0 ? "+" : d < 0 ? "-" : "";
-    return { cls, text: `${sign}${Math.abs(d).toLocaleString("ko-KR")}원 (${sign}${Math.abs(pct).toFixed(2)}%)` };
-  }
-  const isAuto = s => !!(s.code && s.qty);
-  function priceLine(s) {
-    const it = prices && prices.items && prices.items[s.code];
-    if (!it) return `${fmtQty(s.qty)}주`;
-    const p = it[2] === "USD" ? `$${it[1].toLocaleString("en-US")}` : `${it[1].toLocaleString("ko-KR")}원`;
-    return `${fmtQty(s.qty)}주 · 현재가 ${p}`;
-  }
-  function renderStocks() {
-    const total = stocks.reduce((a, s) => a + s.value, 0);
-    const prin = stocks.reduce((a, s) => a + s.principal, 0);
-    document.getElementById("stkTotal").textContent = won(total);
-    const pl = plText(total, prin);
-    document.getElementById("stkPL").innerHTML = stocks.length
-      ? `<span class="${pl.cls}">${pl.text}</span><span class="base">원금 ${won(prin)}</span>` : "";
-    document.getElementById("stkPrincipal").textContent = stocks.length ? `${stocks.length}종목` : "";
-    document.getElementById("stkUpdated").textContent = prices && prices.updated && stocks.some(isAuto) ? `시세 ${prices.updated.slice(5).replace("-", "/")} 기준` : "";
-    document.getElementById("stkList").innerHTML = stocks.map(s => {
-      const p = plText(s.value, s.principal);
-      return `<div class="stk-row" data-stk="${s.id}">
-        <div style="min-width:0"><div class="name">${escHtml(s.name)}${isAuto(s) ? '<span class="auto">자동</span>' : ""}</div>
-          <div class="sub">${isAuto(s) ? priceLine(s) : "원금 " + won(s.principal)}</div></div>
-        <div class="right"><div class="money">${won(s.value)}</div><div class="pl ${p.cls}">${p.text}</div></div>
-      </div>`;
-    }).join("") + `<div class="stk-add" id="stkAddBtn">+ 종목 추가</div>`;
-  }
-
-  // ----- 추가 / 더 사기 / 팔기 창 -----
-  const $ = id => document.getElementById(id);
-  let stkFrom = "cash", pickedCode = null;
-  const drawFrom = () => {
-    $("stkFrom").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === stkFrom));
-    $("stkFromHint").textContent = stkFrom === "cash" ? "넣은 돈만큼 현금 잔액에서 빠져요" : "현금 잔액은 그대로, 총 자산에만 더해져요";
-  };
-  $("stkFrom").onclick = e => { const b = e.target.closest("[data-v]"); if (b) { stkFrom = b.dataset.v; drawFrom(); } };
-  ["stkPrin", "stkVal"].forEach(id => { const el = $(id); el.oninput = () => { const n = toNum(el.value); el.value = n ? n.toLocaleString("ko-KR") : ""; }; });
-
-  // 종목 이름 검색
-  const norm = t => String(t).toLowerCase().replace(/\s/g, "");
-  function setPicked(code) {
-    pickedCode = code;
-    const it = code && prices && prices.items[code];
-    $("stkPicked").textContent = it ? `✓ 시세 자동 연결 · ${code}` : "";
-    $("fQty").style.display = it ? "" : "none";
-    $("fVal").style.display = it ? "none" : "";
-  }
-  $("stkName").oninput = () => {
-    setPicked(null);
-    const q = norm($("stkName").value), box = $("stkSugg");
-    if (!q || !prices || !prices.items) { box.classList.remove("show"); return; }
-    const hits = [];
-    for (const [code, it] of Object.entries(prices.items)) {
-      const n = norm(it[0]);
-      const score = n === q || norm(code) === q ? 0 : n.startsWith(q) ? 1 : n.includes(q) ? 2 : -1;
-      if (score >= 0) hits.push([score, n.length, code, it]);
-    }
-    hits.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    box.innerHTML = hits.slice(0, 12).map(h => `<button data-code="${escHtml(h[2])}"><span>${escHtml(h[3][0])}</span><span>${escHtml(h[2])}</span></button>`).join("");
-    box.classList.toggle("show", hits.length > 0);
-  };
-  $("stkSugg").onclick = e => {
-    const b = e.target.closest("[data-code]");
-    if (!b) return;
-    $("stkName").value = prices.items[b.dataset.code][0];
-    $("stkSugg").classList.remove("show");
-    setPicked(b.dataset.code);
-    $("stkQty").focus();
-  };
-
-  function openStockForm(mode, s) {
-    const auto = mode === "add" ? null : isAuto(s);
-    $("stkTitle").textContent = mode === "add" ? "종목 추가" : `${s.name} ${mode === "buy" ? "더 사기" : "팔기"}`;
-    $("stkOk").textContent = mode === "add" ? "추가" : mode === "buy" ? "사기" : "팔기";
-    $("fName").style.display = mode === "add" ? "" : "none";
-    $("fFrom").style.display = mode === "sell" ? "none" : "";
-    $("lQty").textContent = mode === "add" ? "수량 (주)" : mode === "buy" ? "더 산 수량 (주)" : `판 수량 (주) · 지금 ${fmtQty(s.qty || 0)}주`;
-    $("lPrin").textContent = mode === "add" ? "넣은 돈 (원금)" : mode === "buy" ? "더 넣은 돈" : "판 금액 (받은 돈)";
-    ["stkName", "stkQty", "stkPrin", "stkVal"].forEach(id => $(id).value = "");
-    $("stkErr").textContent = ""; $("stkSugg").classList.remove("show");
-    stkFrom = "cash"; drawFrom();
-    if (mode === "add") setPicked(null);
-    else { $("fQty").style.display = auto ? "" : "none"; $("fVal").style.display = "none"; $("stkPicked").textContent = ""; }
-    if (mode === "add" && (!prices || !prices.items)) $("stkPicked").textContent = "";
-    $("stkDim").classList.add("show");
-    (mode === "add" ? $("stkName") : auto ? $("stkQty") : $("stkPrin")).focus();
-
-    const close = () => $("stkDim").classList.remove("show");
-    $("stkCancel").onclick = close;
-    $("stkOk").onclick = () => {
-      const err = m => { $("stkErr").textContent = m; };
-      const qty = toQty($("stkQty").value), amt = toNum($("stkPrin").value);
-      const needQty = mode === "add" ? !!pickedCode : auto;
-      if (mode === "add" && !$("stkName").value.trim()) return err("종목 이름을 입력해 주세요");
-      if (needQty && !qty) return err("수량을 입력해 주세요");
-      if (!amt) return err(mode === "sell" ? "받은 돈을 입력해 주세요" : "넣은 돈을 입력해 주세요");
-      if (mode === "add") {
-        const id = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-        const st = { id, name: $("stkName").value.trim(), principal: amt, value: $("stkVal").value.trim() ? toNum($("stkVal").value) : amt };
-        if (pickedCode) { st.code = pickedCode; st.qty = qty; }
-        stocks.push(st);
-        if (stkFrom === "cash") stockLog.push({ date: todayStr(), amount: amt, id });
-      } else if (mode === "buy") {
-        s.principal += amt;
-        if (auto) s.qty += qty; else s.value += amt;
-        if (stkFrom === "cash") stockLog.push({ date: todayStr(), amount: amt, id: s.id });
-      } else {
-        if (auto && qty > s.qty + 1e-9) return err("가진 수량보다 많아요");
-        stockLog.push({ date: todayStr(), amount: -amt, id: s.id });
-        const ratio = auto ? qty / s.qty : Math.min(1, amt / (s.value || amt));
-        if (ratio >= 1 - 1e-9) stocks = stocks.filter(x => x !== s);   // 전부 팔면 목록에서 빠짐 (현금 기록은 남음)
-        else {
-          s.principal = Math.round(s.principal * (1 - ratio));
-          if (auto) { s.qty = +(s.qty - qty).toFixed(6); s.value = Math.round(s.value * (1 - ratio)); }
-          else s.value -= amt;
-        }
-      }
-      applyPrices(); saveStocks(); close(); render();
-    };
-  }
-
-  // ----- 종목 메뉴 -----
-  let menuStock = null;
-  const menuDim = $("stkMenuDim");
-  function openStockMenu(s) {
-    menuStock = s;
-    const p = plText(s.value, s.principal);
-    $("stkMenuTitle").textContent = s.name;
-    $("stkMenuMsg").textContent = `평가금액 ${won(s.value)}${isAuto(s) ? "\n" + priceLine(s) : ""}\n원금 ${won(s.principal)} · ${p.text}`;
-    $("stkMenu").querySelector('[data-m="value"]').style.display = isAuto(s) ? "none" : "";
-    $("stkMenu").querySelector('[data-m="qty"]').style.display = isAuto(s) ? "" : "none";
-    $("stkMenu").querySelector('[data-m="rename"]').style.display = isAuto(s) ? "none" : "";
-    menuDim.classList.add("show");
-  }
-  $("stkMenuClose").onclick = () => menuDim.classList.remove("show");
-
-  $("stkMenu").onclick = async e => {
-    const b = e.target.closest("[data-m]");
-    const s = menuStock;
-    if (!b || !s) return;
-    menuDim.classList.remove("show");
-    const m = b.dataset.m;
-    if (m === "buy" || m === "sell") return openStockForm(m, s);
-    if (m === "value") {
-      const v = await uiDialog({ title: `${s.name} 평가금액`, message: "증권 앱에 보이는 지금 평가금액을 넣어주세요",
-        input: { value: String(s.value), numeric: true, maxLength: 15 }, validate: v => /^[\d,\s]*$/.test(v) ? "" : "숫자만 입력해 주세요" });
-      if (v === null) return;
-      s.value = toNum(v);
-    } else if (m === "qty") {
-      const v = await uiDialog({ title: `${s.name} 수량`, message: "지금 가진 주식 수", input: { value: String(s.qty), maxLength: 12 },
-        validate: v => toQty(v) > 0 ? "" : "수량을 숫자로 입력해 주세요" });
-      if (v === null) return;
-      s.qty = toQty(v);
-    } else if (m === "rename") {
-      const v = await uiDialog({ title: "이름 바꾸기", input: { value: s.name, maxLength: 20 }, validate: v => v.trim() ? "" : "이름을 입력해 주세요" });
-      if (v === null) return;
-      s.name = v.trim();
-    } else if (m === "delete") {
-      const yes = await uiDialog({ title: `${s.name} 지우기`, message: "잘못 넣었을 때 쓰는 거예요. 이 종목 때문에 현금에서 빠졌던 돈도 되돌아가요.\n실제로 판 거라면 '팔기'를 써주세요.", okText: "지우기", danger: true });
-      if (!yes) return;
-      stocks = stocks.filter(x => x !== s);
-      stockLog = stockLog.filter(l => l.id !== s.id);
-    }
-    applyPrices(); saveStocks(); render();
-  };
-
-  $("stkList").onclick = e => {
-    if (e.target.closest("#stkAddBtn")) return openStockForm("add");
-    const row = e.target.closest("[data-stk]");
-    const s = row && stocks.find(x => x.id === row.dataset.stk);
-    if (s) openStockMenu(s);
-  };
-  // 저금통의 주식 줄 누르면 주식 탭으로
-  document.getElementById("bankStock").onclick = () => document.querySelector('.tabbar [data-page="stock"]').click();
-
   // 브라우저에 '이 사이트 기록은 지우지 말아줘' 요청
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 
   render();
-  loadPrices();
 </script>
 </body>
 </html>
