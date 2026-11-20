@@ -315,6 +315,23 @@
   .sheet.editing .delete { display: block; }
   .record { cursor: pointer; }
   .record:active { background: var(--bg); }
+
+  /* 요약 카드 → 그 달 내역 모아보기 */
+  .summary .card { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .summary .card:active { transform: scale(0.98); }
+  .ml-dim { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 55; display: none; align-items: flex-end; justify-content: center; }
+  .ml-dim.show { display: flex; }
+  .ml { width: 100%; max-width: 480px; max-height: 82vh; background: var(--bg); border-radius: 20px 20px 0 0; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+  .ml-head { display: flex; align-items: center; gap: 10px; padding: 18px 16px 12px; }
+  .ml-head h4 { flex: 1; font-size: 17px; font-weight: 700; }
+  .ml-head .ml-total { font-size: 15px; color: var(--c); }
+  .ml-close { flex: none; width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--card); color: var(--text); font-size: 18px; line-height: 32px; cursor: pointer; font-family: inherit; }
+  .ml-body { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 0 12px 16px; }
+  .ml-body .record-list { margin-bottom: 4px; }
+  .ml-body .ml-date { font-size: 12px; color: var(--sub); padding: 12px 4px 6px; }
+  .ml-body .record.zero .money { color: var(--sub); }
+  .ml-dim[data-type="income"] { --c: var(--income); } .ml-dim[data-type="expense"] { --c: var(--expense); }
+  .ml-dim[data-type="saving"] { --c: var(--saving); } .ml-dim[data-type="cash"] { --c: var(--text); }
 </style>
 </head>
 <body>
@@ -326,10 +343,22 @@
   </div>
 
   <div class="summary">
-    <div class="card income"><div class="label">수입</div><div class="value" id="sumIncome">0원</div></div>
-    <div class="card expense"><div class="label">지출</div><div class="value" id="sumExpense">0원</div></div>
-    <div class="card saving"><div class="label">저축</div><div class="value" id="sumSaving">0원</div></div>
-    <div class="card cash"><div class="label">현금 잔액</div><div class="value" id="sumCash">0원</div></div>
+    <div class="card income" data-kind="income"><div class="label">수입</div><div class="value" id="sumIncome">0원</div></div>
+    <div class="card expense" data-kind="expense"><div class="label">지출</div><div class="value" id="sumExpense">0원</div></div>
+    <div class="card saving" data-kind="saving"><div class="label">저축</div><div class="value" id="sumSaving">0원</div></div>
+    <div class="card cash" data-kind="cash"><div class="label">현금 잔액</div><div class="value" id="sumCash">0원</div></div>
+  </div>
+
+  <!-- 요약 카드 누르면 뜨는 그 달 내역 -->
+  <div class="ml-dim" id="mlDim">
+    <div class="ml" role="dialog" aria-modal="true" aria-labelledby="mlTitle">
+      <div class="ml-head">
+        <h4 id="mlTitle"></h4>
+        <span class="ml-total" id="mlTotal"></span>
+        <button class="ml-close" id="mlClose" aria-label="닫기">✕</button>
+      </div>
+      <div class="ml-body" id="mlBody"></div>
+    </div>
   </div>
 
   <div class="calendar">
@@ -598,11 +627,11 @@
     const list = monthTx(viewYear, viewMonth);
     const sum = type => list.filter(t => t.type === type).reduce((a, t) => a + t.amount, 0);
     const income = sum("income"), expense = sum("expense");
-    const savingIn = list.reduce((a, t) => a + svIn(t), 0);     // 저축 카드: 넣은 돈만
     const savingNet = list.reduce((a, t) => a + svCash(t), 0);  // 현금 계산: 꺼낸 돈은 현금으로 돌아옴
     document.getElementById("sumIncome").textContent = won(income);
     document.getElementById("sumExpense").textContent = won(expense);
-    document.getElementById("sumSaving").textContent = won(savingIn);
+    // 저축 카드: 넣은 돈 − 현금으로 꺼낸 돈 (저축끼리 옮긴 건 0, 꺼냈다 다시 넣으면 상쇄)
+    document.getElementById("sumSaving").textContent = won(savingNet);
     const cashExp = list.reduce((a, t) => a + cashOut(t), 0);
     document.getElementById("sumCash").textContent = won(income - cashExp - savingNet);
     document.getElementById("monthTitle").innerHTML = `<span class="year">${viewYear}년</span>${viewMonth + 1}월`;
@@ -1467,6 +1496,66 @@
   document.getElementById("recordList").onclick = e => {
     const row = e.target.closest("[data-idx]");
     if (row) openSheet(Number(row.dataset.idx));
+  };
+
+  // ===== 요약 카드 → 그 달 내역 모아보기 =====
+  const mlDim = document.getElementById("mlDim");
+  const ML_NAME = { income: "수입", expense: "지출", saving: "저축", cash: "현금 잔액" };
+  // 카드별로 보여줄 기록과, 그 기록이 카드 숫자에 더해지는 금액(부호 포함)
+  const mlEffect = {
+    income:  t => t.type === "income" ? t.amount : null,
+    expense: t => t.type === "expense" ? t.amount : null,
+    saving:  t => t.type === "saving" ? svCash(t) : null,
+    cash:    t => t.type === "income" ? t.amount
+               : t.type === "expense" ? (payOf(t) === "현금" ? -t.amount : null)
+               : t.type === "saving" ? (svCash(t) ? -svCash(t) : null) : null
+  };
+  const signed = (v, plus) => (v < 0 ? "−" : plus && v > 0 ? "+" : "") + Math.abs(v).toLocaleString() + "원";
+
+  function openMonthList(kind) {
+    const rows = monthTx(viewYear, viewMonth)
+      .map(t => ({ t, v: mlEffect[kind](t) }))
+      .filter(r => r.v !== null)
+      .sort((a, b) => b.t.date.localeCompare(a.t.date));
+    const total = rows.reduce((a, r) => a + r.v, 0);
+    const plus = kind === "saving" || kind === "cash";   // 늘고 줄어드는 게 섞이는 카드만 +/− 표시
+
+    mlDim.dataset.type = kind;
+    document.getElementById("mlTitle").textContent = `${viewMonth + 1}월 ${ML_NAME[kind]}`;
+    document.getElementById("mlTotal").textContent = won(total);
+
+    let html = "", lastDate = "";
+    rows.forEach(({ t, v }) => {
+      if (t.date !== lastDate) {
+        if (lastDate) html += `</div>`;
+        const [y, m, d] = t.date.split("-").map(Number);
+        html += `<div class="ml-date">${m}월 ${d}일 (${"일월화수목금토"[new Date(y, m - 1, d).getDay()]})</div><div class="record-list">`;
+        lastDate = t.date;
+      }
+      html += `
+        <div class="record ${t.type}${v === 0 ? " zero" : ""}" data-idx="${transactions.indexOf(t)}">
+          <span class="badge">${t.out ? (t.to ? "옮김" : "꺼냄") : TYPE_LABEL[t.type]}</span>
+          <div class="info">
+            <div class="cat-name">${escHtml(t.category || "")}${t.out ? ` → ${escHtml(t.to || "현금")}` : ""}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : t.type === "expense" && payOf(t) !== "현금" ? `<span class="pay-tag">${escHtml(payOf(t))}</span>` : ""}</div>
+            ${t.memo ? `<div class="memo-text">${escHtml(t.memo)}</div>` : ""}
+          </div>
+          <div class="money">${v === 0 ? t.amount.toLocaleString() + "원" : signed(v, plus)}</div>
+        </div>`;
+    });
+    if (lastDate) html += `</div>`;
+    document.getElementById("mlBody").innerHTML = html || `<div class="record-list"><div class="empty-records">기록이 없어요</div></div>`;
+    document.getElementById("mlBody").scrollTop = 0;
+    mlDim.classList.add("show");
+  }
+  const closeMonthList = () => mlDim.classList.remove("show");
+
+  document.querySelectorAll(".summary .card[data-kind]").forEach(c => c.onclick = () => openMonthList(c.dataset.kind));
+  document.getElementById("mlClose").onclick = closeMonthList;
+  mlDim.onclick = e => { if (e.target === mlDim) closeMonthList(); };   // 바깥 어두운 곳 눌러도 닫힘
+  // 목록에서 기록 누르면 바로 수정 창 열기
+  document.getElementById("mlBody").onclick = e => {
+    const row = e.target.closest("[data-idx]");
+    if (row) { closeMonthList(); openSheet(Number(row.dataset.idx)); }
   };
 
   document.getElementById("deleteBtn").onclick = async () => {
