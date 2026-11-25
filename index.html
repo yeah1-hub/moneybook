@@ -630,8 +630,9 @@
     const savingNet = list.reduce((a, t) => a + svCash(t), 0);  // 현금 계산: 꺼낸 돈은 현금으로 돌아옴
     document.getElementById("sumIncome").textContent = won(income);
     document.getElementById("sumExpense").textContent = won(expense);
-    // 저축 카드: 넣은 돈 − 현금으로 꺼낸 돈 (저축끼리 옮긴 건 0, 꺼냈다 다시 넣으면 상쇄)
-    document.getElementById("sumSaving").textContent = won(savingNet);
+    // 저축 카드: 이번 달에 넣은 돈만 (꺼낸 돈은 전체 잔액에서 빠지므로 이번 달 저축에는 영향 없음)
+    const savingIn = list.reduce((a, t) => a + svIn(t), 0);
+    document.getElementById("sumSaving").textContent = won(savingIn);
     const cashExp = list.reduce((a, t) => a + cashOut(t), 0);
     document.getElementById("sumCash").textContent = won(income - cashExp - savingNet);
     document.getElementById("monthTitle").innerHTML = `<span class="year">${viewYear}년</span>${viewMonth + 1}월`;
@@ -1239,13 +1240,13 @@
     const out = form.type === "saving" && form.out;
     saveBtn.disabled = !(n > 0 && form.category) || (out && form.to === form.category);
 
-    // 꺼내기: 보낼 곳 + 잔액 표시
+    // 저축: 고른 저축의 현재 잔액 표시 (넣기·꺼내기 모두)
     document.getElementById("toPill").innerHTML = `보낼 곳 · <b>${esc(form.to || "현금")}</b> ▾`;
-    if (out) {
+    if (form.type === "saving") {
       const others = transactions.filter((t, i) => !(editingIdx !== null && i === editingIdx));
       const left = form.category ? (savingBalances(others)[form.category] || 0) : null;
       document.getElementById("instHint").textContent = form.category
-        ? `${form.category} 잔액 ${left.toLocaleString()}원${n > left ? " · 잔액보다 많아요" : ""}`
+        ? `${form.category} 현재 잔액 ${left.toLocaleString()}원${out && n > left ? " · 잔액보다 많아요" : ""}`
         : "";
       return;
     }
@@ -1505,7 +1506,7 @@
   const mlEffect = {
     income:  t => t.type === "income" ? t.amount : null,
     expense: t => t.type === "expense" ? t.amount : null,
-    saving:  t => t.type === "saving" ? svCash(t) : null,
+    saving:  t => svIn(t) || null,   // 저축 카드와 같게: 이번 달에 넣은 기록만
     cash:    t => t.type === "income" ? t.amount
                : t.type === "expense" ? (payOf(t) === "현금" ? -t.amount : null)
                : t.type === "saving" ? (svCash(t) ? -svCash(t) : null) : null
@@ -1518,7 +1519,7 @@
       .filter(r => r.v !== null)
       .sort((a, b) => b.t.date.localeCompare(a.t.date));
     const total = rows.reduce((a, r) => a + r.v, 0);
-    const plus = kind === "saving" || kind === "cash";   // 늘고 줄어드는 게 섞이는 카드만 +/− 표시
+    const plus = kind === "cash";   // 늘고 줄어드는 게 섞이는 카드만 +/− 표시
 
     mlDim.dataset.type = kind;
     document.getElementById("mlTitle").textContent = `${viewMonth + 1}월 ${ML_NAME[kind]}`;
