@@ -62,6 +62,8 @@
   /* 요약 숫자는 살짝 어두운 톤 */
   .card.income  { --dot: var(--income); }  .card.income  .value { color: #1d5ec9; }
   .card.expense { --dot: var(--expense); } .card.expense .value { color: #cf3a42; }
+  .card .sub { font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .card .sub:empty { display: none; }
   .card.saving  { --dot: var(--saving); }  .card.saving  .value { color: #16834f; }
   .card.cash    { --dot: var(--cash); }
 
@@ -343,8 +345,8 @@
   </div>
 
   <div class="summary">
-    <div class="card income" data-kind="income"><div class="label">수입</div><div class="value" id="sumIncome">0원</div></div>
-    <div class="card expense" data-kind="expense"><div class="label">지출</div><div class="value" id="sumExpense">0원</div></div>
+    <div class="card income" data-kind="income"><div class="label">수입</div><div class="value" id="sumIncome">0원</div><div class="sub" id="subIncome"></div></div>
+    <div class="card expense" data-kind="expense"><div class="label">지출</div><div class="value" id="sumExpense">0원</div><div class="sub" id="subExpense"></div></div>
     <div class="card saving" data-kind="saving"><div class="label">저축</div><div class="value" id="sumSaving">0원</div></div>
     <div class="card cash" data-kind="cash"><div class="label">현금 잔액</div><div class="value" id="sumCash">0원</div></div>
   </div>
@@ -441,7 +443,7 @@
 
 <div class="dlg-dim" id="toDim">
   <div class="dlg">
-    <h4>어디로 옮길까요?</h4>
+    <h4 id="toTitle">어디로 옮길까요?</h4>
     <div class="inst-grid" id="toGrid"></div>
     <div class="btns" style="grid-template-columns:1fr"><button class="cancel" id="toCancel">닫기</button></div>
   </div>
@@ -615,7 +617,7 @@
   const svIn = t => t.type === "saving" && !t.out ? t.amount : 0;
 
   // 현금 잔액에서 빠지는 지출: 카드로 쓴 건 제외
-  const cashOut = t => t.type === "expense" && payOf(t) === "현금" ? t.amount : 0;
+  const cashOut = t => t.type === "expense" && !t.from && payOf(t) === "현금" ? t.amount : 0;
 
   function monthTx(y, m) {
     const prefix = `${y}-${pad(m + 1)}-`;
@@ -630,6 +632,11 @@
     const savingNet = list.reduce((a, t) => a + svCash(t), 0);  // 현금 계산: 꺼낸 돈은 현금으로 돌아옴
     document.getElementById("sumIncome").textContent = won(income);
     document.getElementById("sumExpense").textContent = won(expense);
+    // 보조 줄: 저축에서 꺼내 현금으로 쓴 돈 / 저축에서 바로 쓴 지출
+    const fromSaving = list.reduce((a, t) => a + (t.type === "saving" && t.out && !t.to ? t.amount : 0), 0);
+    const spentSaving = list.reduce((a, t) => a + (t.type === "expense" && t.from ? t.amount : 0), 0);
+    document.getElementById("subIncome").textContent = fromSaving ? `+ 저축에서 ${fromSaving.toLocaleString()}` : "";
+    document.getElementById("subExpense").textContent = spentSaving ? `저축에서 ${spentSaving.toLocaleString()}` : "";
     // 저축 카드: 이번 달에 넣은 돈만 (꺼낸 돈은 전체 잔액에서 빠지므로 이번 달 저축에는 영향 없음)
     const savingIn = list.reduce((a, t) => a + svIn(t), 0);
     document.getElementById("sumSaving").textContent = won(savingIn);
@@ -661,7 +668,7 @@
           <div class="record ${t.type}" data-idx="${transactions.indexOf(t)}">
             <span class="badge">${t.out ? (t.to ? "옮김" : "꺼냄") : TYPE_LABEL[t.type]}</span>
             <div class="info">
-              <div class="cat-name">${escHtml(t.category || "")}${t.out ? ` → ${escHtml(t.to || "현금")}` : ""}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : t.type === "expense" && payOf(t) !== "현금" ? `<span class="pay-tag">${escHtml(payOf(t))}</span>` : ""}</div>
+              <div class="cat-name">${escHtml(t.category || "")}${t.out ? ` → ${escHtml(t.to || "현금")}` : ""}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : t.from ? `<span class="pay-tag">${escHtml(t.from)}에서</span>` : t.type === "expense" && payOf(t) !== "현금" ? `<span class="pay-tag">${escHtml(payOf(t))}</span>` : ""}</div>
               ${t.memo ? `<div class="memo-text">${escHtml(t.memo)}</div>` : ""}
             </div>
             <div class="money">${t.amount.toLocaleString()}원</div>
@@ -841,6 +848,7 @@
     const add = (n, v) => { if (n) bal[n] = (bal[n] || 0) + v; };
     Object.keys(start.saving).forEach(n => add(n, start.saving[n] || 0));
     list.forEach(t => {
+      if (t.type === "expense" && t.from) return add(t.from, -t.amount);   // 저축에서 바로 쓴 지출
       if (t.type !== "saving") return;
       if (!t.out) add(t.category, t.amount);
       else { add(t.category, -t.amount); add(t.to, t.amount); }
@@ -1221,6 +1229,7 @@
       transactions.forEach(t => {
         if (t.type === form.type && t.category === name) t.category = next;
         if (t.type === form.type && t.to === name) t.to = next;
+        if (form.type === "saving" && t.from === name) t.from = next;
       });
       if (form.to === name) form.to = next;
       try { localStorage.setItem("mb_transactions", JSON.stringify(transactions)); } catch (err) {}
@@ -1238,10 +1247,12 @@
     amountEl.textContent = won(n);
     amountEl.classList.toggle("empty", n === 0);
     const out = form.type === "saving" && form.out;
-    saveBtn.disabled = !(n > 0 && form.category) || (out && form.to === form.category);
+    saveBtn.disabled = !(n > 0 && form.category) || (out && !form.spend && form.to === form.category);
 
     // 저축: 고른 저축의 현재 잔액 표시 (넣기·꺼내기 모두)
-    document.getElementById("toPill").innerHTML = `보낼 곳 · <b>${esc(form.to || "현금")}</b> ▾`;
+    document.getElementById("toPill").innerHTML = form.spend
+      ? `보낼 곳 · <b>지출 · ${esc(form.spend)}</b> ▾`
+      : `보낼 곳 · <b>${esc(form.to || "현금")}</b> ▾`;
     if (form.type === "saving") {
       const others = transactions.filter((t, i) => !(editingIdx !== null && i === editingIdx));
       const left = form.category ? (savingBalances(others)[form.category] || 0) : null;
@@ -1431,7 +1442,7 @@
   // ===== 저축 넣기 / 꺼내기 =====
   function setOut(on) {
     form.out = !!on;
-    if (!on) form.to = null;
+    if (!on) { form.to = null; form.spend = null; }
     sheet.classList.toggle("out", form.type === "saving" && form.out);
     document.querySelectorAll("#svMode button").forEach(b => b.classList.toggle("on", (b.dataset.out === "1") === form.out));
   }
@@ -1442,17 +1453,29 @@
     renderAmount();
   };
   const toDim = document.getElementById("toDim");
-  document.getElementById("toPill").onclick = () => {
+  // 보낼 곳: 현금 / 다른 저축 / 지출(저축에서 바로 쓰기 → 지출 카테고리 고르기)
+  function showToChoices() {
     const opts = [null, ...CATEGORIES.saving.filter(n => n !== form.category)];
+    document.getElementById("toTitle").textContent = "어디로 보낼까요?";
     document.getElementById("toGrid").innerHTML = opts.map(n =>
-      `<button data-to="${n === null ? "" : esc(n)}" class="${n === (form.to || null) ? "on" : ""}">${n === null ? "현금" : esc(n)}</button>`).join("");
+      `<button data-to="${n === null ? "" : esc(n)}" class="${!form.spend && n === (form.to || null) ? "on" : ""}">${n === null ? "현금" : esc(n)}</button>`).join("")
+      + `<button data-spend-open class="${form.spend ? "on" : ""}">지출</button>`;
     toDim.classList.add("show");
-  };
+  }
+  function showSpendChoices() {
+    document.getElementById("toTitle").textContent = "어디에 썼나요?";
+    document.getElementById("toGrid").innerHTML = CATEGORIES.expense.map(n =>
+      `<button data-spend="${esc(n)}" class="${n === form.spend ? "on" : ""}">${esc(n)}</button>`).join("");
+  }
+  document.getElementById("toPill").onclick = showToChoices;
   document.getElementById("toCancel").onclick = () => toDim.classList.remove("show");
   document.getElementById("toGrid").onclick = e => {
+    if (e.target.closest("[data-spend-open]")) return showSpendChoices();
+    const sp = e.target.closest("[data-spend]");
     const b = e.target.closest("[data-to]");
-    if (!b) return;
-    form.to = b.dataset.to || null;
+    if (sp) { form.spend = sp.dataset.spend; form.to = null; }
+    else if (b) { form.to = b.dataset.to || null; form.spend = null; }
+    else return;
     toDim.classList.remove("show");
     renderAmount();
   };
@@ -1474,7 +1497,7 @@
     const t = editingIdx !== null ? transactions[editingIdx] : null;
     // 할부 기록이면 첫 회차 날짜와 총액으로 열기
     const first = t && t.inst ? (transactions.find(x => x.inst && x.inst.gid === t.inst.gid && x.inst.i === 1) || t) : t;
-    form = { type: t ? t.type : "expense", amount: "", category: null, date: t && t.inst ? (t.inst.buy || first.date) : (t ? t.date : selectedDate), months: t && t.inst ? t.inst.n : 1,
+    form = { type: t ? (t.from ? "saving" : t.type) : "expense", amount: "", category: null, date: t && t.inst ? (t.inst.buy || first.date) : (t ? t.date : selectedDate), months: t && t.inst ? t.inst.n : 1,
       pay: t ? payOf(t) : (() => { let p = null; try { p = localStorage.getItem("mb_pay"); } catch (e) {}
         return PAYS.includes(p) ? p : "현금"; })() };
     dateInput.value = form.date;
@@ -1485,8 +1508,10 @@
       form.amount = String(t.inst ? t.inst.total : t.amount);
       // 지운 카테고리로 저장된 기록이면 목록에 다시 넣어줌
       if (t.category && !CATEGORIES[t.type].includes(t.category)) { CATEGORIES[t.type].push(t.category); saveCats(); }
-      form.category = t.category;
+      if (t.from && !CATEGORIES.saving.includes(t.from)) { CATEGORIES.saving.push(t.from); saveCats(); }
+      form.category = t.from || t.category;
       if (t.out) { setOut(true); form.to = t.to || null; }
+      if (t.from) { setOut(true); form.spend = t.category; }
       renderCats(); renderAmount(); revealSelected();
     }
     sheet.classList.toggle("editing", !!t);
@@ -1508,7 +1533,7 @@
     expense: t => t.type === "expense" ? t.amount : null,
     saving:  t => svIn(t) || null,   // 저축 카드와 같게: 이번 달에 넣은 기록만
     cash:    t => t.type === "income" ? t.amount
-               : t.type === "expense" ? (payOf(t) === "현금" ? -t.amount : null)
+               : t.type === "expense" ? (cashOut(t) ? -t.amount : null)
                : t.type === "saving" ? (svCash(t) ? -svCash(t) : null) : null
   };
   const signed = (v, plus) => (v < 0 ? "−" : plus && v > 0 ? "+" : "") + Math.abs(v).toLocaleString() + "원";
@@ -1537,7 +1562,7 @@
         <div class="record ${t.type}${v === 0 ? " zero" : ""}" data-idx="${transactions.indexOf(t)}">
           <span class="badge">${t.out ? (t.to ? "옮김" : "꺼냄") : TYPE_LABEL[t.type]}</span>
           <div class="info">
-            <div class="cat-name">${escHtml(t.category || "")}${t.out ? ` → ${escHtml(t.to || "현금")}` : ""}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : t.type === "expense" && payOf(t) !== "현금" ? `<span class="pay-tag">${escHtml(payOf(t))}</span>` : ""}</div>
+            <div class="cat-name">${escHtml(t.category || "")}${t.out ? ` → ${escHtml(t.to || "현금")}` : ""}${t.inst ? `<span class="inst-tag">할부 ${t.inst.i}/${t.inst.n}</span>` : t.from ? `<span class="pay-tag">${escHtml(t.from)}에서</span>` : t.type === "expense" && payOf(t) !== "현금" ? `<span class="pay-tag">${escHtml(payOf(t))}</span>` : ""}</div>
             ${t.memo ? `<div class="memo-text">${escHtml(t.memo)}</div>` : ""}
           </div>
           <div class="money">${v === 0 ? t.amount.toLocaleString() + "원" : signed(v, plus)}</div>
@@ -1610,8 +1635,12 @@
         inst: { gid, i: i + 1, n: months, total, buy: form.date }
       }));
     } else {
-      const rec = { date: form.date, type: form.type, amount: total, category: form.category, memo };
-      if (form.type === "saving" && form.out) { rec.out = true; rec.to = form.to || null; }
+      const spend = form.type === "saving" && form.out && form.spend;
+      // 저축에서 바로 쓴 돈은 지출 기록으로 저장 (from: 꺼낸 저축)
+      const rec = spend
+        ? { date: form.date, type: "expense", amount: total, category: form.spend, memo, from: form.category }
+        : { date: form.date, type: form.type, amount: total, category: form.category, memo };
+      if (!spend && form.type === "saving" && form.out) { rec.out = true; rec.to = form.to || null; }
       if (form.type === "expense") rec.pay = form.pay || "현금";
       transactions.push(rec);
     }
