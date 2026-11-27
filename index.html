@@ -1467,7 +1467,7 @@
   function showSpendChoices() {
     document.getElementById("toTitle").textContent = "어디에 썼나요?";
     document.getElementById("toGrid").innerHTML = CATEGORIES.expense.map(n =>
-      `<button data-spend="${esc(n)}" class="spend${n === form.spend ? " on" : ""}">${esc(n)}</button>`).join("");
+      `<button data-spend="${esc(n)}" class="${n === form.spend ? "on" : ""}">${esc(n)}</button>`).join("");
   }
   document.getElementById("toPill").onclick = showToChoices;
   document.getElementById("toCancel").onclick = () => toDim.classList.remove("show");
