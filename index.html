@@ -154,6 +154,8 @@
   .page-title { font-size: 22px; font-weight: 700; padding-bottom: 16px; text-align: center; }
   .asset-hero { background: var(--text); color: #fff; border-radius: 18px; padding: 22px 20px; }
   .asset-hero .t1 { font-size: 13px; opacity: 0.7; }
+  /* 총 자산 아래 가운데 꾸미기 그림 */
+  .asset-deco { display: block; height: 90px; width: auto; margin: 14px auto -6px; pointer-events: none; }
   .asset-hero .t2 { font-size: 30px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px; }
   .section-title { font-size: 14px; font-weight: 700; color: var(--sub); margin: 22px 4px 8px; display: flex; justify-content: space-between; }
   .bank-row { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-top: 1px solid var(--line); cursor: pointer; }
@@ -407,6 +409,7 @@
 <section class="page" id="page-bank">
   <div class="page-title">저금통</div>
   <div class="asset-hero"><div class="t1">총 자산</div><div class="t2" id="assetTotal">0원</div></div>
+  <img class="asset-deco" src="deco4.png" alt="">
 
   <div class="section-title"><span>현금</span></div>
   <div class="list-card" style="margin-top:0" id="cashList"></div>
