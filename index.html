@@ -47,8 +47,8 @@
   .month-bar h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
   .month-bar h1 { text-align: center; line-height: 1.15; }
   .month-bar h1 .year { display: block; font-size: 12px; font-weight: 400; color: var(--sub); margin-bottom: 2px; }
-  /* 기록 제목(날짜) 옆 꾸미기 그림 */
-  .records-head .title-wrap { display: flex; align-items: center; gap: 8px; }
+  /* 기록 제목 줄 오른쪽 끝 꾸미기 그림 (하루 합계가 있으면 그 오른쪽) */
+  .records-head .right-wrap { display: flex; align-items: center; gap: 8px; }
   .records-deco { height: 30px; width: auto; pointer-events: none; }
   .nav-btn {
     width: 36px; height: 36px; border: none; border-radius: 50%;
@@ -381,7 +381,7 @@
     </div>
   </div>
   <div class="records">
-    <div class="records-head"><div class="title-wrap"><h3 id="recordsTitle"></h3><img class="records-deco" src="deco.png" alt=""></div><span class="day-sum" id="recordsSum"></span></div>
+    <div class="records-head"><h3 id="recordsTitle"></h3><div class="right-wrap"><span class="day-sum" id="recordsSum"></span><img class="records-deco" src="deco.png" alt=""></div></div>
     <div class="record-list" id="recordList"></div>
   </div>
 </section>
