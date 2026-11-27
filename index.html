@@ -134,6 +134,9 @@
   /* 통계 */
   .chart-card { background: var(--card); border-radius: 16px; padding: 22px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; justify-content: center; }
   .donut { position: relative; width: 220px; height: 220px; }
+  /* 원형 그래프 오른쪽 아래 꾸미기 그림 */
+  .chart-card { position: relative; }
+  .chart-deco { position: absolute; right: 10px; bottom: 10px; height: 90px; width: auto; pointer-events: none; }
   .donut svg { width: 100%; height: 100%; }
   .donut .pct-label { font-size: 11px; font-weight: 400; fill: #3d3d3d; text-anchor: middle; dominant-baseline: central; font-family: inherit; }
   .donut .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -396,7 +399,7 @@
     <h1 id="statsTitle"></h1>
     <button class="nav-btn" id="statsNext" aria-label="다음 달">›</button>
   </div>
-  <div class="chart-card"><div class="donut" id="donut"></div></div>
+  <div class="chart-card"><div class="donut" id="donut"></div><img class="chart-deco" src="deco3.png" alt=""></div>
   <div class="list-card" id="statList"></div>
 </section>
 
