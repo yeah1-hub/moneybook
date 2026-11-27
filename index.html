@@ -345,7 +345,7 @@
   </div>
 
   <div class="summary">
-    <div class="card income" data-kind="income"><div class="label">수입</div><div class="value" id="sumIncome">0원</div><div class="sub" id="subIncome"></div></div>
+    <div class="card income" data-kind="income"><div class="label">수입</div><div class="value" id="sumIncome">0원</div></div>
     <div class="card expense" data-kind="expense"><div class="label">지출</div><div class="value" id="sumExpense">0원</div><div class="sub" id="subExpense"></div></div>
     <div class="card saving" data-kind="saving"><div class="label">저축</div><div class="value" id="sumSaving">0원</div></div>
     <div class="card cash" data-kind="cash"><div class="label">현금 잔액</div><div class="value" id="sumCash">0원</div></div>
@@ -632,10 +632,8 @@
     const savingNet = list.reduce((a, t) => a + svCash(t), 0);  // 현금 계산: 꺼낸 돈은 현금으로 돌아옴
     document.getElementById("sumIncome").textContent = won(income);
     document.getElementById("sumExpense").textContent = won(expense);
-    // 보조 줄: 저축에서 꺼내 현금으로 쓴 돈 / 저축에서 바로 쓴 지출
-    const fromSaving = list.reduce((a, t) => a + (t.type === "saving" && t.out && !t.to ? t.amount : 0), 0);
+    // 보조 줄: 저축에서 바로 쓴 지출
     const spentSaving = list.reduce((a, t) => a + (t.type === "expense" && t.from ? t.amount : 0), 0);
-    document.getElementById("subIncome").textContent = fromSaving ? `+ 저축에서 ${fromSaving.toLocaleString()}` : "";
     document.getElementById("subExpense").textContent = spentSaving ? `저축에서 ${spentSaving.toLocaleString()}` : "";
     // 저축 카드: 이번 달에 넣은 돈만 (꺼낸 돈은 전체 잔액에서 빠지므로 이번 달 저축에는 영향 없음)
     const savingIn = list.reduce((a, t) => a + svIn(t), 0);
